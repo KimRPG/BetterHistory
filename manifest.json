@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "GestureBackHistory",
+  "version": "0.2.2",
+  "description": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
+  "minimum_chrome_version": "102",
+  "permissions": [
+    "debugger",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "action": {
+    "default_title": "GestureBackHistory settings",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}
