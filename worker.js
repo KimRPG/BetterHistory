@@ -1,0 +1,136 @@
+"use strict";
+
+const PROTOCOL_VERSION = "1.3";
+const MAX_HISTORY_ENTRIES = 20;
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || !Number.isInteger(sender.tab?.id)) {
+    return undefined;
+  }
+
+  const tabId = sender.tab.id;
+
+  if (message?.type === "GET_TAB_HISTORY") {
+    const direction = normalizeDirection(message.direction);
+    getTabHistory(tabId, direction)
+      .then((entries) => sendResponse({ ok: true, entries }))
+      .catch((error) => sendResponse(toErrorResponse(error)));
+    return true;
+  }
+
+  if (message?.type === "NAVIGATE_HISTORY") {
+    if (!Number.isInteger(message.entryId)) {
+      sendResponse({ ok: false, error: "잘못된 히스토리 항목입니다." });
+      return undefined;
+    }
+
+    const direction = normalizeDirection(message.direction);
+    navigateToHistoryEntry(tabId, message.entryId, direction)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse(toErrorResponse(error)));
+    return true;
+  }
+
+  return undefined;
+});
+
+async function getTabHistory(tabId, direction = "back") {
+  return withDebugger(tabId, async (target) => {
+    const history = await chrome.debugger.sendCommand(
+      target,
+      "Page.getNavigationHistory"
+    );
+
+    if (!history || !Array.isArray(history.entries)) {
+      throw new Error("탭 히스토리를 읽지 못했습니다.");
+    }
+
+    const currentIndex = Number.isInteger(history.currentIndex)
+      ? history.currentIndex
+      : 0;
+
+    const entries = direction === "forward"
+      ? history.entries.slice(currentIndex + 1)
+      : history.entries.slice(0, currentIndex).reverse();
+
+    return entries
+      .slice(0, MAX_HISTORY_ENTRIES)
+      .map((entry, index) => ({
+        id: entry.id,
+        title: cleanText(entry.title) || cleanText(entry.url) || "제목 없는 페이지",
+        url: cleanText(entry.url),
+        distance: index + 1
+      }))
+      .filter((entry) => Number.isInteger(entry.id) && entry.url);
+  });
+}
+
+async function navigateToHistoryEntry(tabId, entryId, direction = "back") {
+  return withDebugger(tabId, async (target) => {
+    const history = await chrome.debugger.sendCommand(
+      target,
+      "Page.getNavigationHistory"
+    );
+
+    const currentIndex = Number.isInteger(history?.currentIndex)
+      ? history.currentIndex
+      : 0;
+    const validEntries = (direction === "forward"
+      ? history?.entries?.slice(currentIndex + 1)
+      : history?.entries?.slice(0, currentIndex)) ?? [];
+    const validEntry = validEntries
+      .some((entry) => entry.id === entryId);
+
+    if (!validEntry) {
+      throw new Error("페이지 기록이 바뀌었습니다. 메뉴를 다시 열어 주세요.");
+    }
+
+    await chrome.debugger.sendCommand(
+      target,
+      "Page.navigateToHistoryEntry",
+      { entryId }
+    );
+  });
+}
+
+async function withDebugger(tabId, operation) {
+  const target = { tabId };
+  let attached = false;
+
+  try {
+    await chrome.debugger.attach(target, PROTOCOL_VERSION);
+    attached = true;
+    return await operation(target);
+  } finally {
+    if (attached) {
+      try {
+        await chrome.debugger.detach(target);
+      } catch {
+        // The tab can close or navigate while detaching. There is nothing left to clean up.
+      }
+    }
+  }
+}
+
+function cleanText(value) {
+  return typeof value === "string" ? value.trim().slice(0, 2048) : "";
+}
+
+function normalizeDirection(value) {
+  return value === "forward" ? "forward" : "back";
+}
+
+function toErrorResponse(error) {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  let message = rawMessage || "알 수 없는 오류가 발생했습니다.";
+
+  if (/Another debugger|already attached|Cannot attach/i.test(rawMessage)) {
+    message = "이 탭에 DevTools 또는 다른 디버거가 연결되어 있습니다. 닫은 뒤 다시 시도해 주세요.";
+  } else if (/Cannot access|not allowed|restricted/i.test(rawMessage)) {
+    message = "Chrome이 보호하는 페이지에서는 히스토리를 열 수 없습니다.";
+  } else if (/No tab with given id|target closed/i.test(rawMessage)) {
+    message = "탭이 닫혔거나 더 이상 사용할 수 없습니다.";
+  }
+
+  return { ok: false, error: message };
+}
