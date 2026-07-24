@@ -10,6 +10,9 @@
   const GESTURE_RELEASE_MS = 460;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
+  const DISMISS_GESTURE_THRESHOLD = 28;
+  const DISMISS_GESTURE_MAX_DISTANCE = 72;
+  const DEFAULT_GESTURE_HELP = "당긴 채 위·아래로 선택하고 손을 떼면 이동";
 
   let settings = { ...DEFAULT_SETTINGS };
   let swipeDistance = 0;
@@ -21,6 +24,10 @@
   let menuDirection = null;
   let gestureTimer = null;
   let releaseTimer = null;
+  let dismissTimer = null;
+  let dismissDistance = 0;
+  let dismissGestureActive = false;
+  let dismissArmed = false;
   let pendingReleaseSelection = false;
   let requestInFlight = false;
   let currentEntries = [];
@@ -77,12 +84,25 @@
 
   function handleWheel(event) {
     if (!settings.enabled || !event.isTrusted || event.ctrlKey) return;
-    if (host && event.target === host) return;
 
     const deltaX = toPixels(event.deltaX, event.deltaMode);
     const deltaY = toPixels(event.deltaY, event.deltaMode);
     const absoluteX = Math.abs(deltaX);
     const absoluteY = Math.abs(deltaY);
+    const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
+    const eventFromExtensionUi = host && event.target === host;
+
+    if (dismissGestureActive && isMenuOpen()) {
+      updateDismissGesture(event, deltaX);
+      return;
+    }
+
+    if (
+      eventFromExtensionUi &&
+      (!isMenuOpen() || !horizontal || getFingerDelta(event, deltaX) <= 0)
+    ) {
+      return;
+    }
 
     if (gestureTriggered && isMenuOpen()) {
       if (!event.cancelable) return;
@@ -96,8 +116,12 @@
       return;
     }
 
-    const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
     if (!horizontal || absoluteX < 0.5) return;
+
+    if (isMenuOpen() && getFingerDelta(event, deltaX) > 0) {
+      updateDismissGesture(event, deltaX);
+      return;
+    }
 
     if (canScrollHorizontally(event.composedPath(), deltaX)) return;
     if (!event.cancelable) return;
@@ -140,11 +164,7 @@
   }
 
   function updateGestureSelection(event, deltaY) {
-    const hasDeviceDirection = "webkitDirectionInvertedFromDevice" in event;
-    const directionIsInverted = hasDeviceDirection
-      ? event.webkitDirectionInvertedFromDevice
-      : true;
-    const fingerDeltaY = directionIsInverted ? -deltaY : deltaY;
+    const fingerDeltaY = getFingerDelta(event, deltaY);
     verticalDistance += fingerDeltaY;
 
     while (Math.abs(verticalDistance) >= VERTICAL_SELECTION_STEP) {
@@ -152,6 +172,75 @@
       verticalDistance -= step * VERTICAL_SELECTION_STEP;
       verticalSelectionUsed = true;
       moveSelectedEntry(step, false);
+    }
+  }
+
+  function getFingerDelta(event, wheelDelta) {
+    const hasDeviceDirection = "webkitDirectionInvertedFromDevice" in event;
+    const directionIsInverted = hasDeviceDirection
+      ? event.webkitDirectionInvertedFromDevice
+      : true;
+    return directionIsInverted ? -wheelDelta : wheelDelta;
+  }
+
+  function updateDismissGesture(event, deltaX) {
+    if (!event.cancelable) return;
+    event.preventDefault();
+
+    dismissGestureActive = true;
+    dismissDistance = Math.min(
+      DISMISS_GESTURE_MAX_DISTANCE,
+      Math.max(0, dismissDistance + getFingerDelta(event, deltaX))
+    );
+    dismissArmed = dismissDistance >= DISMISS_GESTURE_THRESHOLD;
+    updateDismissPreview();
+
+    clearTimeout(dismissTimer);
+    dismissTimer = setTimeout(
+      finishDismissGesture,
+      GESTURE_RELEASE_MS
+    );
+  }
+
+  function updateDismissPreview() {
+    if (!panel) return;
+
+    const progress = Math.min(1, dismissDistance / DISMISS_GESTURE_THRESHOLD);
+    panel.classList.add("dismissing");
+    panel.style.setProperty("--dismiss-x", `${dismissDistance}px`);
+    panel.style.opacity = String(1 - progress * 0.35);
+
+    if (gestureHelp) {
+      gestureHelp.textContent = dismissArmed
+        ? "손을 떼면 닫기"
+        : "오른쪽으로 조금 더 밀어 닫기";
+    }
+  }
+
+  function finishDismissGesture() {
+    clearTimeout(dismissTimer);
+    dismissTimer = null;
+
+    if (dismissArmed) {
+      closeMenu();
+      return;
+    }
+
+    cancelDismissGesture();
+  }
+
+  function cancelDismissGesture({ restoreHelp = true } = {}) {
+    clearTimeout(dismissTimer);
+    dismissTimer = null;
+    dismissDistance = 0;
+    dismissGestureActive = false;
+    dismissArmed = false;
+
+    panel?.classList.remove("dismissing");
+    panel?.style.removeProperty("--dismiss-x");
+    panel?.style.removeProperty("opacity");
+    if (restoreHelp && gestureHelp && isMenuOpen()) {
+      gestureHelp.textContent = DEFAULT_GESTURE_HELP;
     }
   }
 
@@ -304,6 +393,10 @@
           width: min(390px, calc(100vw - 36px));
         }
         .panel.open { display: block; }
+        .panel.dismissing {
+          transform: translate(var(--dismiss-x, 0), -50%);
+          transition: transform 70ms linear, opacity 70ms linear;
+        }
         .panel.forward {
           animation-name: enter-forward;
           left: auto;
@@ -495,7 +588,7 @@
           </button>
         </header>
         <div class="list" role="list"></div>
-        <div class="gesture-help"><b aria-hidden="true">↕</b><span>당긴 채 위·아래로 선택하고 손을 떼면 이동</span></div>
+        <div class="gesture-help"><b aria-hidden="true">↕</b><span>${DEFAULT_GESTURE_HELP}</span></div>
       </section>
     `;
 
@@ -538,7 +631,7 @@
     panel.classList.add("open");
     eyebrow.textContent = direction === "forward" ? "Forward history" : "Back history";
     heading.textContent = direction === "forward" ? "앞으로 갈 페이지" : "뒤로 갈 페이지";
-    gestureHelp.textContent = "당긴 채 위·아래로 선택하고 손을 떼면 이동";
+    gestureHelp.textContent = DEFAULT_GESTURE_HELP;
     list.innerHTML = `<div class="state"><div class="spinner"></div>이 탭의 기록을 불러오는 중…</div>`;
 
     try {
@@ -691,7 +784,8 @@
   }
 
   function closeMenu() {
-    panel?.classList.remove("open", "forward");
+    cancelDismissGesture({ restoreHelp: false });
+    panel?.classList.remove("open", "forward", "dismissing");
     currentEntries = [];
     selectedIndex = -1;
     menuDirection = null;
