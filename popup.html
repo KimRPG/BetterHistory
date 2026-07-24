@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GestureBackHistory settings</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header class="brand">
+        <span class="brand-mark" aria-hidden="true">↔</span>
+        <div>
+          <h1>GestureBackHistory</h1>
+          <p>트랙패드로 이전·다음 페이지를 빠르게 선택하세요.</p>
+        </div>
+      </header>
+
+      <section class="setting primary-setting">
+        <div>
+          <h2>제스처 사용</h2>
+          <p>현재와 이후에 여는 웹페이지에 적용됩니다.</p>
+        </div>
+        <label class="switch">
+          <input id="enabled" type="checkbox">
+          <span aria-hidden="true"></span>
+          <span class="sr-only">제스처 사용 여부</span>
+        </label>
+      </section>
+
+      <section class="setting stacked">
+        <label for="gesture-direction">
+          <strong>뒤로가기 방향</strong>
+          <span>반대 방향 제스처는 앞으로가기로 동작합니다.</span>
+        </label>
+        <select id="gesture-direction">
+          <option value="right">오른쪽으로 스와이프</option>
+          <option value="left">왼쪽으로 스와이프</option>
+        </select>
+      </section>
+
+      <section class="setting stacked">
+        <label for="threshold">
+          <strong>민감도</strong>
+          <span>메뉴가 열리기까지 필요한 이동 거리입니다.</span>
+        </label>
+        <select id="threshold">
+          <option value="60">높음</option>
+          <option value="90">보통</option>
+          <option value="130">낮음</option>
+        </select>
+      </section>
+
+      <p class="notice">
+        설치 전에 열려 있던 탭은 한 번 새로고침해 주세요. Chrome 설정·새 탭·웹 스토어에서는 동작하지 않습니다.
+      </p>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

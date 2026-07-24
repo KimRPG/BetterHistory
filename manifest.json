@@ -14,6 +14,10 @@
   "background": {
     "service_worker": "worker.js"
   },
+  "action": {
+    "default_title": "GestureBackHistory settings",
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": [
