@@ -8,6 +8,7 @@
     holdDurationMs: 500
   });
   const HOLD_DURATION_OPTIONS = Object.freeze([100, 200, 300, 500]);
+  const ORIGINAL_GESTURE_ORDER_OPTIONS = Object.freeze([100, 200]);
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const PAGE_MOTION_ATTRIBUTE = "data-gesture-back-history-page-motion";
   const PAGE_SHIFT_PROPERTY = "--gesture-back-history-page-shift";
@@ -205,7 +206,7 @@
     }
 
     usesOriginalGestureOrder() {
-      return this.settings.holdDurationMs === 100;
+      return ORIGINAL_GESTURE_ORDER_OPTIONS.includes(this.settings.holdDurationMs);
     }
 
     async navigateOneStep(direction) {
