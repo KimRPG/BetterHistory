@@ -11,9 +11,11 @@ const workerSource = fs.readFileSync(
   "utf8"
 );
 
-function loadWorker(history, tabErrors = {}) {
+function loadWorker(history, tabErrors = {}, hooks = {}) {
   let messageListener = null;
+  let detachListener = null;
   const calls = [];
+  const attachedTabs = new Set();
 
   const chrome = {
     runtime: {
@@ -25,17 +27,28 @@ function loadWorker(history, tabErrors = {}) {
       }
     },
     debugger: {
+      onDetach: {
+        addListener(listener) {
+          detachListener = listener;
+        }
+      },
       async attach(target, version) {
         calls.push({ method: "attach", target, version });
+        if (attachedTabs.has(target.tabId)) {
+          throw new Error("Another debugger is already attached to the tab");
+        }
+        attachedTabs.add(target.tabId);
       },
       async sendCommand(target, method, params) {
         calls.push({ method, target, params });
+        await hooks.beforeCommand?.({ target, method, detach: () => detachListener(target, "canceled_by_user") });
         if (method === "Page.getNavigationHistory") return history;
         if (method === "Page.navigateToHistoryEntry") return {};
         throw new Error(`Unexpected command: ${method}`);
       },
       async detach(target) {
         calls.push({ method: "detach", target });
+        attachedTabs.delete(target.tabId);
       }
     },
     tabs: {
@@ -53,7 +66,12 @@ function loadWorker(history, tabErrors = {}) {
   const context = vm.createContext({ chrome, console });
   new vm.Script(workerSource, { filename: "worker.js" }).runInContext(context);
 
-  return { calls, context, getMessageListener: () => messageListener };
+  return {
+    calls,
+    context,
+    getMessageListener: () => messageListener,
+    getDetachListener: () => detachListener
+  };
 }
 
 const sampleHistory = {
@@ -253,6 +271,59 @@ test("이동할 앞뒤 기록이 없으면 오류 없이 무시한다", async ()
       { ok: true, navigated: false }
     ]
   );
+});
+
+test("같은 탭의 디버거 작업은 겹치지 않게 한 줄로 실행한다", async () => {
+  let releaseFirstCommand = null;
+  const firstCommandStarted = new Promise((resolve) => {
+    releaseFirstCommand = resolve;
+  });
+  const runtime = loadWorker(sampleHistory, {}, {
+    async beforeCommand() {
+      // 첫 명령을 잡아 두면 두 번째 요청이 겹쳐 들어옵니다.
+      if (releaseFirstCommand) {
+        const release = releaseFirstCommand;
+        releaseFirstCommand = null;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        release();
+      }
+    }
+  });
+
+  const [first, second] = await Promise.all([
+    runtime.context.getTabHistory(7),
+    (async () => {
+      await firstCommandStarted;
+      return runtime.context.getTabHistory(7);
+    })()
+  ]);
+
+  assert.equal(first.length, 2);
+  assert.equal(second.length, 2);
+
+  // attach/detach가 짝을 이루어 순서대로 나타나야 합니다.
+  const lifecycle = runtime.calls
+    .filter(({ method }) => method === "attach" || method === "detach")
+    .map(({ method }) => method);
+  assert.deepEqual(lifecycle, ["attach", "detach", "attach", "detach"]);
+});
+
+test("작업 중 디버거가 끊기면 안내 문구로 알린다", async () => {
+  const runtime = loadWorker(sampleHistory, {}, {
+    async beforeCommand({ method, detach }) {
+      if (method === "Page.getNavigationHistory") {
+        detach();
+        throw new Error("Detached while handling command");
+      }
+    }
+  });
+
+  await assert.rejects(
+    runtime.context.getTabHistory(7),
+    /디버거 연결이 해제되어/
+  );
+  // 이미 끊긴 연결에 detach를 다시 호출하지 않습니다.
+  assert.equal(runtime.calls.some(({ method }) => method === "detach"), false);
 });
 
 test("한 단계 이동의 예상하지 못한 오류는 호출자에게 전달한다", async () => {

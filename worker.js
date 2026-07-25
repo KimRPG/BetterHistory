@@ -3,6 +3,13 @@
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
 
+const attachedTabs = new Set();
+const tabQueues = new Map();
+
+chrome.debugger.onDetach.addListener((source) => {
+  if (Number.isInteger(source?.tabId)) attachedTabs.delete(source.tabId);
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || !Number.isInteger(sender.tab?.id)) {
     return undefined;
@@ -115,16 +122,40 @@ async function navigateToHistoryEntry(tabId, entryId, direction = "back") {
   });
 }
 
-async function withDebugger(tabId, operation) {
+// 같은 탭에 디버거를 겹쳐 붙이면 두 번째 attach가 실패하고, 먼저 끝난 작업이
+// 아직 쓰이는 연결을 떼어 버립니다. 탭 단위로 한 줄로 세워서 실행합니다.
+function withDebugger(tabId, operation) {
+  const previous = tabQueues.get(tabId) ?? Promise.resolve();
+  const result = previous.then(
+    () => attachAndRun(tabId, operation),
+    () => attachAndRun(tabId, operation)
+  );
+  const tail = result.then(() => {}, () => {});
+
+  tabQueues.set(tabId, tail);
+  void tail.then(() => {
+    if (tabQueues.get(tabId) === tail) tabQueues.delete(tabId);
+  });
+
+  return result;
+}
+
+async function attachAndRun(tabId, operation) {
   const target = { tabId };
-  let attached = false;
+
+  await chrome.debugger.attach(target, PROTOCOL_VERSION);
+  attachedTabs.add(tabId);
 
   try {
-    await chrome.debugger.attach(target, PROTOCOL_VERSION);
-    attached = true;
     return await operation(target);
+  } catch (error) {
+    // 디버거 안내 배너의 "취소"나 DevTools 연결로 끊긴 경우입니다.
+    if (!attachedTabs.has(tabId)) {
+      throw new Error("디버거 연결이 해제되어 히스토리를 읽지 못했습니다.");
+    }
+    throw error;
   } finally {
-    if (attached) {
+    if (attachedTabs.delete(tabId)) {
       try {
         await chrome.debugger.detach(target);
       } catch {
