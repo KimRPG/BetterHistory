@@ -135,23 +135,30 @@ test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", asyn
   ]);
 });
 
-test("500ms 전에 끝난 가로 제스처는 한 단계 이동한다", async () => {
+test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
 
-  controller.menu = createGestureMenuStub();
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
   controller.handleWheel(createWheelEvent(0, -0.6));
   controller.handleWheel(createWheelEvent(300, -0.6));
-  controller.finishShortGesture();
-  await new Promise((resolve) => setImmediate(resolve));
+  controller.finishTimedGesture();
 
-  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
-    type: "NAVIGATE_ONE_STEP",
-    direction: "back"
-  });
+  assert.deepEqual(openedDirections, ["back"]);
+  assert.equal(
+    runtime.messages.some(({ type }) => type === "NAVIGATE_ONE_STEP"),
+    false
+  );
+  controller.endGestureCapture();
 });
 
-test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", () => {
+test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -169,8 +176,17 @@ test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", ()
   assert.deepEqual(openedDirections, []);
 
   controller.handleWheel(createWheelEvent(500));
-  assert.deepEqual(openedDirections, ["back"]);
-  controller.endGestureCapture();
+  controller.handleWheel(createWheelEvent(650));
+  controller.finishTimedGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, []);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(runtime.messages)).filter(
+      ({ type }) => type === "NAVIGATE_ONE_STEP"
+    ),
+    [{ type: "NAVIGATE_ONE_STEP", direction: "back" }]
+  );
 });
 
 test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된다", () => {

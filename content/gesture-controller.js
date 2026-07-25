@@ -112,6 +112,13 @@
       const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
       const eventFromExtensionUi = this.menu.isEventFromUi(event);
 
+      if (this.gestureTriggered && !this.menu.isOpen()) {
+        if (!event.cancelable) return;
+        event.preventDefault();
+        this.scheduleGestureIdleFinish();
+        return;
+      }
+
       if (this.dismissGestureActive && this.menu.isOpen()) {
         this.updateDismissGesture(event, deltaX);
         return;
@@ -168,30 +175,41 @@
         direction
       );
 
-      clearTimeout(this.gestureIdleTimer);
-      this.gestureIdleTimer = setTimeout(
-        () => this.finishShortGesture(),
-        GESTURE_IDLE_MS
-      );
+      this.scheduleGestureIdleFinish();
 
       if (this.gestureTriggered || gestureDuration < GESTURE_HOLD_MS) {
         return;
       }
 
       this.gestureTriggered = true;
+      this.menu.hideGestureIndicator();
+      this.pendingReleaseSelection = false;
+      void this.navigateOneStep(direction);
+    }
+
+    scheduleGestureIdleFinish() {
+      clearTimeout(this.gestureIdleTimer);
+      this.gestureIdleTimer = setTimeout(
+        () => this.finishTimedGesture(),
+        GESTURE_IDLE_MS
+      );
+    }
+
+    finishTimedGesture() {
+      const direction = this.gestureDirection;
       clearTimeout(this.gestureIdleTimer);
       this.gestureIdleTimer = null;
+
+      if (this.gestureTriggered || direction === null) {
+        this.endGestureCapture();
+        return;
+      }
+
+      this.gestureTriggered = true;
       this.menu.hideGestureIndicator();
       this.pendingReleaseSelection = false;
       void this.openHistoryMenu(direction);
       this.scheduleGestureRelease();
-    }
-
-    finishShortGesture() {
-      const direction = this.gestureDirection;
-      const shouldNavigate = !this.gestureTriggered && direction !== null;
-      this.endGestureCapture();
-      if (shouldNavigate) void this.navigateOneStep(direction);
     }
 
     async navigateOneStep(direction) {
