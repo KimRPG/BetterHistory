@@ -203,6 +203,29 @@ test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", ()
   controller.endGestureCapture();
 });
 
+test("설정한 대기 시간이 지나야 히스토리 메뉴를 연다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.settings.holdDurationMs = 700;
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+
+  for (const timeStamp of [0, 300, 500, 699]) {
+    controller.handleWheel(createWheelEvent(timeStamp));
+  }
+  assert.deepEqual(openedDirections, []);
+
+  controller.handleWheel(createWheelEvent(700));
+  assert.deepEqual(openedDirections, ["back"]);
+  controller.endGestureCapture();
+});
+
 test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();

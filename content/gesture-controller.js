@@ -4,10 +4,11 @@
   const namespace = globalThis.GestureBackHistory ??= {};
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
-    gestureDirection: "right"
+    gestureDirection: "right",
+    holdDurationMs: 500
   });
+  const HOLD_DURATION_OPTIONS = Object.freeze([300, 500, 700, 1000]);
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
-  const GESTURE_HOLD_MS = 500;
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;
   const HORIZONTAL_RATIO = 1.25;
@@ -164,7 +165,7 @@
       const gestureDuration = Math.max(0, event.timeStamp - this.gestureStartedAt);
       this.menu.showGestureIndicator(
         event.clientY,
-        gestureDuration / GESTURE_HOLD_MS,
+        gestureDuration / this.settings.holdDurationMs,
         direction
       );
 
@@ -174,7 +175,10 @@
         GESTURE_IDLE_MS
       );
 
-      if (this.gestureTriggered || gestureDuration < GESTURE_HOLD_MS) {
+      if (
+        this.gestureTriggered ||
+        gestureDuration < this.settings.holdDurationMs
+      ) {
         return;
       }
 
@@ -341,9 +345,14 @@
   }
 
   function sanitizeSettings(candidate) {
+    const holdDurationMs = Number(candidate?.holdDurationMs);
+
     return {
       enabled: candidate?.enabled !== false,
-      gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right"
+      gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
+      holdDurationMs: HOLD_DURATION_OPTIONS.includes(holdDurationMs)
+        ? holdDurationMs
+        : DEFAULT_SETTINGS.holdDurationMs
     };
   }
 
