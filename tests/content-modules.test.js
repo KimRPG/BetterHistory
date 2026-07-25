@@ -130,11 +130,12 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
   );
 });
 
-test("툴바와 웹스토어용 아이콘을 선언한다", () => {
+test("favicon API를 지원하는 Chrome 버전을 최소 버전으로 선언한다", () => {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8")
   );
 
+  assert.equal(Number(manifest.minimum_chrome_version) >= 104, true);
   for (const size of ["16", "32", "48", "128"]) {
     const iconPath = manifest.icons[size];
     assert.equal(typeof iconPath, "string");

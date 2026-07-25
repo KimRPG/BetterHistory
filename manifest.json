@@ -3,7 +3,7 @@
   "name": "GestureBackHistory",
   "version": "0.3.1",
   "description": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
-  "minimum_chrome_version": "102",
+  "minimum_chrome_version": "104",
   "permissions": [
     "debugger",
     "favicon",
