@@ -130,6 +130,19 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
   );
 });
 
+test("툴바와 웹스토어용 아이콘을 선언한다", () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8")
+  );
+
+  for (const size of ["16", "32", "48", "128"]) {
+    const iconPath = manifest.icons[size];
+    assert.equal(typeof iconPath, "string");
+    assert.equal(manifest.action.default_icon[size], iconPath);
+    assert.equal(fs.existsSync(path.join(__dirname, "..", iconPath)), true);
+  }
+});
+
 test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다", () => {
   const runtime = loadContentModules();
   const { DEFAULT_SETTINGS, HOLD_DURATION_CHOICES, sanitizeSettings } =
