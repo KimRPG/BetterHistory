@@ -21,6 +21,12 @@ function loadContentModules() {
   const rootAttributes = new Set();
   const chrome = {
     runtime: {
+      getURL(resourcePath) {
+        const path = resourcePath.startsWith("/")
+          ? resourcePath
+          : `/${resourcePath}`;
+        return `chrome-extension://test-extension-id${path}`;
+      },
       async sendMessage(message) {
         messages.push(message);
         return message.type === "GET_TAB_HISTORY"
@@ -63,6 +69,7 @@ function loadContentModules() {
     document,
     Element: class Element {},
     setTimeout,
+    URL,
     WheelEvent: {
       DOM_DELTA_LINE: 1,
       DOM_DELTA_PAGE: 2
@@ -97,6 +104,14 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
 
   assert.deepEqual(declaredFiles, contentFiles);
   assert.deepEqual(manifest.content_scripts[0].css, ["content/page-styles.css"]);
+  assert.equal(manifest.permissions.includes("favicon"), true);
+  assert.deepEqual(manifest.web_accessible_resources, [
+    {
+      resources: ["_favicon/*"],
+      matches: ["<all_urls>"],
+      extension_ids: ["*"]
+    }
+  ]);
   assert.equal(typeof runtime.namespace.MENU_STYLES, "string");
   assert.equal(typeof runtime.namespace.historyClient.getEntries, "function");
   assert.equal(typeof runtime.namespace.HistoryMenu, "function");
@@ -106,6 +121,21 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
     runtime.listeners.map(({ type }) => type),
     ["storage", "wheel", "keydown", "pointerdown"]
   );
+});
+
+test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {
+  const runtime = loadContentModules();
+  const favicon = new URL(
+    runtime.namespace.faviconUrl("https://example.com/docs?q=gesture")
+  );
+
+  assert.equal(favicon.protocol, "chrome-extension:");
+  assert.equal(favicon.pathname, "/_favicon/");
+  assert.equal(
+    favicon.searchParams.get("pageUrl"),
+    "https://example.com/docs?q=gesture"
+  );
+  assert.equal(favicon.searchParams.get("size"), "32");
 });
 
 test("활성 상태에 따라 Chrome 기본 가로 탐색을 차단한다", async () => {

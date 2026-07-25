@@ -246,7 +246,25 @@
 
       const mark = document.createElement("span");
       mark.className = "site-mark";
-      mark.textContent = siteInitial(entry.url);
+
+      const favicon = document.createElement("img");
+      favicon.className = "favicon";
+      favicon.alt = "";
+      favicon.decoding = "async";
+      favicon.draggable = false;
+      favicon.src = faviconUrl(entry.url);
+      favicon.addEventListener(
+        "load",
+        () => mark.classList.add("has-favicon"),
+        { once: true }
+      );
+      favicon.addEventListener("error", () => favicon.remove(), { once: true });
+
+      const fallback = document.createElement("span");
+      fallback.className = "site-initial";
+      fallback.setAttribute("aria-hidden", "true");
+      fallback.textContent = siteInitial(entry.url);
+      mark.append(favicon, fallback);
 
       const copy = document.createElement("span");
       copy.className = "entry-copy";
@@ -315,9 +333,17 @@
     }
   }
 
+  function faviconUrl(pageUrl) {
+    const url = new URL(chrome.runtime.getURL("/_favicon/"));
+    url.searchParams.set("pageUrl", pageUrl);
+    url.searchParams.set("size", "32");
+    return url.toString();
+  }
+
   function toMessage(error) {
     return error instanceof Error ? error.message : String(error);
   }
 
   namespace.HistoryMenu = HistoryMenu;
+  namespace.faviconUrl = faviconUrl;
 })();

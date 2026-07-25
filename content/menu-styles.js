@@ -143,9 +143,21 @@
       font-weight: 750;
       height: 36px;
       justify-content: center;
+      overflow: hidden;
+      position: relative;
       text-transform: uppercase;
       width: 36px;
     }
+    .favicon {
+      height: 24px;
+      object-fit: contain;
+      opacity: 0;
+      position: absolute;
+      transition: opacity 100ms ease;
+      width: 24px;
+    }
+    .site-mark.has-favicon .favicon { opacity: 1; }
+    .site-mark.has-favicon .site-initial { visibility: hidden; }
     .entry-copy { flex: 1; min-width: 0; }
     .title {
       display: block;
