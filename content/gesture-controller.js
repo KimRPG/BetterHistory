@@ -153,7 +153,9 @@
         this.resetGesture();
       }
       this.gestureDirection = direction;
-      this.updatePageMotion(event, deltaX);
+      if (this.canAnimatePageMotion(direction)) {
+        this.updatePageMotion(event, deltaX);
+      }
 
       if (this.gestureStartedAt === null) {
         this.gestureStartedAt = event.timeStamp;
@@ -222,6 +224,15 @@
         ? deltaX < 0
         : deltaX > 0;
       return isBackDirection ? "back" : "forward";
+    }
+
+    canAnimatePageMotion(direction) {
+      const navigation = window.navigation;
+      if (!navigation) return true;
+      const canNavigate = direction === "forward"
+        ? navigation.canGoForward
+        : navigation.canGoBack;
+      return typeof canNavigate === "boolean" ? canNavigate : true;
     }
 
     updatePageMotion(event, deltaX) {
