@@ -11,7 +11,7 @@ const workerSource = fs.readFileSync(
   "utf8"
 );
 
-function loadWorker(history) {
+function loadWorker(history, tabErrors = {}) {
   let messageListener = null;
   const calls = [];
 
@@ -41,9 +41,11 @@ function loadWorker(history) {
     tabs: {
       async goBack(tabId) {
         calls.push({ method: "goBack", tabId });
+        if (tabErrors.back) throw tabErrors.back;
       },
       async goForward(tabId) {
         calls.push({ method: "goForward", tabId });
+        if (tabErrors.forward) throw tabErrors.forward;
       }
     }
   };
@@ -220,6 +222,57 @@ test("짧은 제스처 방향으로 한 단계 이동한다", async () => {
   );
   assert.deepEqual(
     JSON.parse(JSON.stringify(responses)),
-    [{ ok: true }, { ok: true }]
+    [
+      { ok: true, navigated: true },
+      { ok: true, navigated: true }
+    ]
   );
+});
+
+test("이동할 앞뒤 기록이 없으면 오류 없이 무시한다", async () => {
+  const runtime = loadWorker(sampleHistory, {
+    back: new Error("Cannot find a previous page in history."),
+    forward: new Error("Cannot find a next page in history.")
+  });
+  const listener = runtime.getMessageListener();
+  const responses = [];
+
+  for (const direction of ["back", "forward"]) {
+    listener(
+      { type: "NAVIGATE_ONE_STEP", direction },
+      { id: "test-extension-id", tab: { id: 7 } },
+      (value) => responses.push(value)
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(responses)),
+    [
+      { ok: true, navigated: false },
+      { ok: true, navigated: false }
+    ]
+  );
+});
+
+test("한 단계 이동의 예상하지 못한 오류는 호출자에게 전달한다", async () => {
+  const runtime = loadWorker(sampleHistory, {
+    back: new Error("Unexpected tab failure")
+  });
+  const listener = runtime.getMessageListener();
+  let response = null;
+
+  listener(
+    { type: "NAVIGATE_ONE_STEP", direction: "back" },
+    { id: "test-extension-id", tab: { id: 7 } },
+    (value) => {
+      response = value;
+    }
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: false,
+    error: "Error: Unexpected tab failure"
+  });
 });

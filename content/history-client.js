@@ -38,6 +38,8 @@
       if (!response?.ok) {
         throw new Error(response?.error || "페이지로 이동하지 못했습니다.");
       }
+
+      return response.navigated !== false;
     }
   };
 })();

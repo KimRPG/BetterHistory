@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "NAVIGATE_ONE_STEP") {
     const direction = normalizeDirection(message.direction);
     navigateOneStep(tabId, direction)
-      .then(() => sendResponse({ ok: true }))
+      .then((navigated) => sendResponse({ ok: true, navigated }))
       .catch((error) => sendResponse(toErrorResponse(error)));
     return true;
   }
@@ -43,12 +43,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function navigateOneStep(tabId, direction = "back") {
-  if (direction === "forward") {
-    await chrome.tabs.goForward(tabId);
-    return;
+  try {
+    if (direction === "forward") {
+      await chrome.tabs.goForward(tabId);
+    } else {
+      await chrome.tabs.goBack(tabId);
+    }
+    return true;
+  } catch (error) {
+    if (isUnavailableHistoryError(error)) return false;
+    throw error;
   }
-
-  await chrome.tabs.goBack(tabId);
 }
 
 async function getTabHistory(tabId, direction = "back") {
@@ -135,6 +140,12 @@ function cleanText(value) {
 
 function normalizeDirection(value) {
   return value === "forward" ? "forward" : "back";
+}
+
+function isUnavailableHistoryError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Cannot find (?:a )?(?:next|previous) page in history/i.test(message) ||
+    /Cannot find a page to go (?:back|forward) to/i.test(message);
 }
 
 function toErrorResponse(error) {
