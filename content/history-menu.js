@@ -19,7 +19,6 @@
       this.list = null;
       this.heading = null;
       this.eyebrow = null;
-      this.gestureHelp = null;
       this.toast = null;
 
       this.busy = false;
@@ -72,7 +71,6 @@
       this.list = this.shadow.querySelector(".list");
       this.heading = this.shadow.querySelector("h2");
       this.eyebrow = this.shadow.querySelector(".eyebrow");
-      this.gestureHelp = this.shadow.querySelector(".gesture-help span");
       this.toast = this.shadow.querySelector(".toast");
       this.shadow
         .querySelector(".close")
@@ -141,7 +139,6 @@
       this.heading.textContent = direction === "forward"
         ? "앞으로 갈 페이지"
         : "뒤로 갈 페이지";
-      this.gestureHelp.textContent = DEFAULT_GESTURE_HELP;
       this.list.innerHTML = `<div class="state"><div class="spinner"></div>이 탭의 기록을 불러오는 중…</div>`;
 
       try {
@@ -363,7 +360,7 @@
     try {
       const parsed = new URL(rawUrl);
       const path = parsed.pathname === "/" ? "" : parsed.pathname;
-      return `${parsed.hostname || parsed.protocol}${path}${parsed.search}`;
+      return `${parsed.host || parsed.protocol}${path}${parsed.search}`;
     } catch {
       return rawUrl;
     }
