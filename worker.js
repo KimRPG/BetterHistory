@@ -2,6 +2,16 @@
 
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
+const GENERIC_ERROR_MESSAGE =
+  "히스토리를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.";
+
+// 사용자에게 그대로 보여도 되는 오류입니다. 그 밖의 오류 원문은 노출하지 않습니다.
+class HistoryError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HistoryError";
+  }
+}
 
 const attachedTabs = new Set();
 const tabQueues = new Map();
@@ -71,7 +81,7 @@ async function getTabHistory(tabId, direction = "back") {
     );
 
     if (!history || !Array.isArray(history.entries)) {
-      throw new Error("탭 히스토리를 읽지 못했습니다.");
+      throw new HistoryError("탭 히스토리를 읽지 못했습니다.");
     }
 
     const currentIndex = Number.isInteger(history.currentIndex)
@@ -111,7 +121,7 @@ async function navigateToHistoryEntry(tabId, entryId, direction = "back") {
       .some((entry) => entry.id === entryId);
 
     if (!validEntry) {
-      throw new Error("페이지 기록이 바뀌었습니다. 메뉴를 다시 열어 주세요.");
+      throw new HistoryError("페이지 기록이 바뀌었습니다. 메뉴를 다시 열어 주세요.");
     }
 
     await chrome.debugger.sendCommand(
@@ -151,7 +161,7 @@ async function attachAndRun(tabId, operation) {
   } catch (error) {
     // 디버거 안내 배너의 "취소"나 DevTools 연결로 끊긴 경우입니다.
     if (!attachedTabs.has(tabId)) {
-      throw new Error("디버거 연결이 해제되어 히스토리를 읽지 못했습니다.");
+      throw new HistoryError("디버거 연결이 해제되어 히스토리를 읽지 못했습니다.");
     }
     throw error;
   } finally {
@@ -180,16 +190,28 @@ function isUnavailableHistoryError(error) {
 }
 
 function toErrorResponse(error) {
-  const rawMessage = error instanceof Error ? error.message : String(error);
-  let message = rawMessage || "알 수 없는 오류가 발생했습니다.";
-
-  if (/Another debugger|already attached|Cannot attach/i.test(rawMessage)) {
-    message = "이 탭에 DevTools 또는 다른 디버거가 연결되어 있습니다. 닫은 뒤 다시 시도해 주세요.";
-  } else if (/Cannot access|not allowed|restricted/i.test(rawMessage)) {
-    message = "Chrome이 보호하는 페이지에서는 히스토리를 열 수 없습니다.";
-  } else if (/No tab with given id|target closed/i.test(rawMessage)) {
-    message = "탭이 닫혔거나 더 이상 사용할 수 없습니다.";
+  if (error instanceof HistoryError) {
+    return { ok: false, error: error.message };
   }
 
-  return { ok: false, error: message };
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const message = toFriendlyMessage(rawMessage);
+  if (!message) {
+    console.warn("GestureBackHistory: 처리하지 못한 오류입니다.", error);
+  }
+
+  return { ok: false, error: message || GENERIC_ERROR_MESSAGE };
+}
+
+function toFriendlyMessage(rawMessage) {
+  if (/Another debugger|already attached|Cannot attach/i.test(rawMessage)) {
+    return "이 탭에 DevTools 또는 다른 디버거가 연결되어 있습니다. 닫은 뒤 다시 시도해 주세요.";
+  }
+  if (/Cannot access|not allowed|restricted/i.test(rawMessage)) {
+    return "Chrome이 보호하는 페이지에서는 히스토리를 열 수 없습니다.";
+  }
+  if (/No tab with given id|target closed/i.test(rawMessage)) {
+    return "탭이 닫혔거나 더 이상 사용할 수 없습니다.";
+  }
+  return "";
 }

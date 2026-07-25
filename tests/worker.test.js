@@ -273,6 +273,49 @@ test("이동할 앞뒤 기록이 없으면 오류 없이 무시한다", async ()
   );
 });
 
+test("예상하지 못한 오류의 원문은 노출하지 않는다", async () => {
+  const runtime = loadWorker(sampleHistory, {
+    back: new Error("Unexpected internal tab failure")
+  });
+  const listener = runtime.getMessageListener();
+  let response = null;
+
+  listener(
+    { type: "NAVIGATE_ONE_STEP", direction: "back" },
+    { id: "test-extension-id", tab: { id: 7 } },
+    (value) => {
+      response = value;
+    }
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(response.ok, false);
+  assert.equal(response.error.includes("Unexpected internal tab failure"), false);
+  assert.match(response.error, /잠시 후 다시 시도해 주세요/);
+});
+
+test("알려진 오류는 안내 문구로 바꿔서 전달한다", async () => {
+  const runtime = loadWorker(sampleHistory, {
+    back: new Error("No tab with given id 7")
+  });
+  const listener = runtime.getMessageListener();
+  let response = null;
+
+  listener(
+    { type: "NAVIGATE_ONE_STEP", direction: "back" },
+    { id: "test-extension-id", tab: { id: 7 } },
+    (value) => {
+      response = value;
+    }
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: false,
+    error: "탭이 닫혔거나 더 이상 사용할 수 없습니다."
+  });
+});
+
 test("같은 탭의 디버거 작업은 겹치지 않게 한 줄로 실행한다", async () => {
   let releaseFirstCommand = null;
   const firstCommandStarted = new Promise((resolve) => {
@@ -324,26 +367,4 @@ test("작업 중 디버거가 끊기면 안내 문구로 알린다", async () =>
   );
   // 이미 끊긴 연결에 detach를 다시 호출하지 않습니다.
   assert.equal(runtime.calls.some(({ method }) => method === "detach"), false);
-});
-
-test("한 단계 이동의 예상하지 못한 오류는 호출자에게 전달한다", async () => {
-  const runtime = loadWorker(sampleHistory, {
-    back: new Error("Unexpected tab failure")
-  });
-  const listener = runtime.getMessageListener();
-  let response = null;
-
-  listener(
-    { type: "NAVIGATE_ONE_STEP", direction: "back" },
-    { id: "test-extension-id", tab: { id: 7 } },
-    (value) => {
-      response = value;
-    }
-  );
-  await new Promise((resolve) => setImmediate(resolve));
-
-  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
-    ok: false,
-    error: "Error: Unexpected tab failure"
-  });
 });
