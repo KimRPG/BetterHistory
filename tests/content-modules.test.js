@@ -103,6 +103,7 @@ function loadContentModules() {
   }
 
   return {
+    chrome,
     listeners,
     messages,
     namespace: context.GestureBackHistory,
@@ -182,6 +183,18 @@ test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", asyn
     { type: "NAVIGATE_HISTORY", entryId: 42, direction: "back" },
     { type: "NAVIGATE_ONE_STEP", direction: "forward" }
   ]);
+});
+
+test("확장 연결이 끊긴 탭의 한 단계 이동은 조용히 무시한다", async () => {
+  const runtime = loadContentModules();
+  runtime.chrome.runtime = undefined;
+
+  const navigated = await runtime.namespace.historyClient.navigateOneStep("back");
+  assert.equal(navigated, false);
+  await assert.rejects(
+    runtime.namespace.historyClient.getEntries("back"),
+    /페이지를 새로고침해 주세요/
+  );
 });
 
 test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", () => {
