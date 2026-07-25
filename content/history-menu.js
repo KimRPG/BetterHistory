@@ -3,6 +3,7 @@
 
   const namespace = globalThis.GestureBackHistory ??= {};
   const DEFAULT_GESTURE_HELP = "당긴 채 위·아래로 선택하고 손을 떼면 이동";
+  const ERROR_AUTO_DISMISS_MS = 3600;
   const TOAST_DURATION_MS = 2600;
 
   class HistoryMenu {
@@ -26,6 +27,7 @@
       this.entries = [];
       this.selectedIndex = -1;
       this.selectionOffset = 0;
+      this.dismissTimer = null;
       this.toastTimer = null;
     }
 
@@ -125,6 +127,7 @@
     async open(direction) {
       if (!this.ensure() || this.busy) return false;
 
+      this.clearDismissTimer();
       this.direction = direction;
       this.entries = [];
       this.selectedIndex = -1;
@@ -157,11 +160,17 @@
     }
 
     close() {
+      this.clearDismissTimer();
       this.panel?.classList.remove("open", "forward");
       this.entries = [];
       this.selectedIndex = -1;
       this.selectionOffset = 0;
       this.direction = null;
+    }
+
+    clearDismissTimer() {
+      clearTimeout(this.dismissTimer);
+      this.dismissTimer = null;
     }
 
     moveSelection(step, focusEntry = false) {
@@ -231,6 +240,7 @@
     }
 
     renderEntries(entries) {
+      this.clearDismissTimer();
       this.list.replaceChildren();
       this.entries = entries;
 
@@ -323,14 +333,22 @@
       if (focusEntry) selectedButton.focus({ preventScroll: true });
     }
 
+    // 오류 패널을 그대로 두면 메뉴가 열린 상태로 남아 가로 제스처를 계속
+    // 삼키므로, 사용자가 닫지 않아도 잠시 뒤 스스로 물러나게 합니다.
     renderState(message, isError = false) {
       this.entries = [];
       this.selectedIndex = -1;
-      this.list.replaceChildren();
       const state = document.createElement("div");
       state.className = `state${isError ? " error" : ""}`;
       state.textContent = message;
-      this.list.append(state);
+      this.list.replaceChildren(state);
+
+      this.clearDismissTimer();
+      if (!isError) return;
+      this.dismissTimer = setTimeout(() => {
+        this.dismissTimer = null;
+        if (this.isOpen()) this.onCloseRequest();
+      }, ERROR_AUTO_DISMISS_MS);
     }
   }
 
