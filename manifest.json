@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GestureBackHistory",
-  "version": "0.4.1",
+  "version": "0.3.1",
   "description": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
   "minimum_chrome_version": "102",
   "permissions": [
@@ -44,7 +44,6 @@
         "content/menu-styles.js",
         "content/history-client.js",
         "content/history-menu.js",
-        "content/gesture-analyzer.js",
         "content/gesture-controller.js",
         "content/index.js"
       ],
