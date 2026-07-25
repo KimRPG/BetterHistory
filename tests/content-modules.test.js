@@ -226,6 +226,36 @@ test("설정한 기준 시간이 지나야 한 단계 이동한다", async () =>
   controller.endGestureCapture();
 });
 
+test("열린 메뉴에서 세로 제스처로 항목을 선택하고 손을 떼면 이동한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const selectionSteps = [];
+  let prevented = false;
+  let navigationCount = 0;
+
+  controller.menu = createGestureMenuStub({
+    isOpen: () => true,
+    moveSelection: (step) => selectionSteps.push(step)
+  });
+  controller.navigateSelectedEntry = async () => {
+    navigationCount += 1;
+    return true;
+  };
+
+  const event = createWheelEvent(0, 0, -40);
+  event.preventDefault = () => {
+    prevented = true;
+  };
+  controller.handleWheel(event);
+
+  assert.equal(prevented, true);
+  assert.deepEqual(selectionSteps, [1]);
+
+  controller.finishMenuSelection();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(navigationCount, 1);
+});
+
 test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
@@ -254,7 +284,7 @@ test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된
   controller.cancelDismissGesture();
 });
 
-function createWheelEvent(timeStamp, deltaX = -8) {
+function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {
   return {
     cancelable: true,
     clientY: 400,
@@ -262,7 +292,7 @@ function createWheelEvent(timeStamp, deltaX = -8) {
     ctrlKey: false,
     deltaMode: 0,
     deltaX,
-    deltaY: 0,
+    deltaY,
     isTrusted: true,
     preventDefault() {},
     timeStamp,
@@ -276,6 +306,7 @@ function createGestureMenuStub(overrides = {}) {
     isBusy: () => false,
     isEventFromUi: () => false,
     isOpen: () => false,
+    moveSelection() {},
     open: () => Promise.resolve(true),
     showGestureIndicator() {},
     ...overrides

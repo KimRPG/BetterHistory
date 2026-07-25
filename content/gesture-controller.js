@@ -12,6 +12,7 @@
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;
   const HORIZONTAL_RATIO = 1.25;
+  const VERTICAL_SELECTION_STEP = 38;
   const DISMISS_GESTURE_THRESHOLD = 28;
   const DISMISS_GESTURE_MAX_DISTANCE = 72;
 
@@ -22,6 +23,10 @@
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
+      this.menuSelectionDistance = 0;
+      this.menuSelectionUsed = false;
+      this.menuSelectionTimer = null;
+      this.pendingMenuSelection = false;
       this.dismissTimer = null;
       this.dismissDistance = 0;
       this.dismissGestureActive = false;
@@ -110,6 +115,15 @@
 
       if (this.dismissGestureActive && this.menu.isOpen()) {
         this.updateDismissGesture(event, deltaX);
+        return;
+      }
+
+      if (
+        this.menu.isOpen() &&
+        absoluteY > 0.5 &&
+        absoluteY >= absoluteX * 0.55
+      ) {
+        this.updateMenuSelection(event, deltaY);
         return;
       }
 
@@ -203,6 +217,50 @@
       return isBackDirection ? "back" : "forward";
     }
 
+    updateMenuSelection(event, deltaY) {
+      if (!event.cancelable) return;
+      event.preventDefault();
+
+      this.menuSelectionDistance += getFingerDelta(event, deltaY);
+
+      while (Math.abs(this.menuSelectionDistance) >= VERTICAL_SELECTION_STEP) {
+        const step = this.menuSelectionDistance > 0 ? 1 : -1;
+        this.menuSelectionDistance -= step * VERTICAL_SELECTION_STEP;
+        this.menuSelectionUsed = true;
+        this.menu.moveSelection(step);
+      }
+
+      clearTimeout(this.menuSelectionTimer);
+      this.menuSelectionTimer = setTimeout(
+        () => this.finishMenuSelection(),
+        GESTURE_RELEASE_MS
+      );
+    }
+
+    finishMenuSelection() {
+      const shouldNavigate = this.menuSelectionUsed;
+      clearTimeout(this.menuSelectionTimer);
+      this.menuSelectionTimer = null;
+      this.menuSelectionDistance = 0;
+      this.menuSelectionUsed = false;
+
+      if (!shouldNavigate) return;
+      if (this.menu.isBusy()) {
+        this.pendingMenuSelection = true;
+        return;
+      }
+
+      void this.navigateSelectedEntry();
+    }
+
+    resetMenuSelection() {
+      clearTimeout(this.menuSelectionTimer);
+      this.menuSelectionTimer = null;
+      this.menuSelectionDistance = 0;
+      this.menuSelectionUsed = false;
+      this.pendingMenuSelection = false;
+    }
+
     updateDismissGesture(event, deltaX) {
       if (!event.cancelable) return;
       event.preventDefault();
@@ -248,7 +306,19 @@
     }
 
     async openHistoryMenu(direction) {
-      await this.menu.open(direction);
+      const opened = await this.menu.open(direction);
+      if (opened && this.pendingMenuSelection) {
+        void this.navigateSelectedEntry();
+      } else if (!opened) {
+        this.pendingMenuSelection = false;
+      }
+    }
+
+    async navigateSelectedEntry() {
+      const selected = this.menu.getSelected();
+      this.pendingMenuSelection = false;
+      if (!selected) return false;
+      return this.navigateEntry(selected.entry, selected.button);
     }
 
     async navigateEntry(entry, button) {
@@ -268,6 +338,7 @@
     }
 
     closeMenu() {
+      this.resetMenuSelection();
       this.cancelDismissGesture({ restoreHelp: false });
       this.menu.close();
       this.endGestureCapture();
