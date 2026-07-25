@@ -14,7 +14,7 @@
   const PAGE_SHIFT_PROPERTY = "--gesture-back-history-page-shift";
   const PAGE_DURATION_PROPERTY = "--gesture-back-history-page-duration";
   const GESTURE_IDLE_MS = 190;
-  const GESTURE_RELEASE_MS = 460;
+  const MENU_SELECTION_RELEASE_MS = 200;
   const PAGE_MOTION_RELEASE_MS = 220;
   const PAGE_MOTION_SCALE = 0.72;
   const PAGE_MOTION_MAX_DISTANCE = 72;
@@ -287,7 +287,7 @@
       clearTimeout(this.menuSelectionTimer);
       this.menuSelectionTimer = setTimeout(
         () => this.finishMenuSelection(),
-        GESTURE_RELEASE_MS
+        MENU_SELECTION_RELEASE_MS
       );
     }
 
