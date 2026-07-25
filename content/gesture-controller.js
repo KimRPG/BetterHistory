@@ -11,6 +11,7 @@
   const GESTURE_SHIFT_MAX = 40;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
+  const SCROLL_OVERFLOW_TOLERANCE = 2;
 
   class GestureController {
     constructor() {
@@ -20,6 +21,7 @@
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
       this.gestureShift = 0;
+      this.scrollAreaCache = null;
       this.menuSelectionDistance = 0;
       this.menuSelectionUsed = false;
       this.menuSelectionTimer = null;
@@ -124,7 +126,7 @@
 
       if (!horizontal || absoluteX < 0.5) return;
 
-      if (isHorizontalScrollArea(event.composedPath())) return;
+      if (this.isInHorizontalScrollArea(event, deltaX)) return;
       if (!event.cancelable) return;
 
       event.preventDefault();
@@ -216,6 +218,32 @@
         ? deltaX < 0
         : deltaX > 0;
       return isBackDirection ? "back" : "forward";
+    }
+
+    // 휠 이벤트마다 합성 경로 전체의 계산된 스타일을 읽는 것은 비싸므로,
+    // 같은 대상·같은 방향으로 이어지는 한 제스처 동안은 판정을 재사용합니다.
+    isInHorizontalScrollArea(event, deltaX) {
+      const sign = deltaX < 0 ? -1 : 1;
+      const cache = this.scrollAreaCache;
+
+      if (
+        cache &&
+        cache.target === event.target &&
+        cache.sign === sign &&
+        event.timeStamp - cache.at < GESTURE_IDLE_MS
+      ) {
+        cache.at = event.timeStamp;
+        return cache.blocked;
+      }
+
+      const blocked = isHorizontalScrollArea(event.composedPath(), deltaX);
+      this.scrollAreaCache = {
+        target: event.target,
+        sign,
+        at: event.timeStamp,
+        blocked
+      };
+      return blocked;
     }
 
     updateMenuSelection(event, deltaY) {
@@ -311,6 +339,7 @@
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.gestureShift = 0;
+      this.scrollAreaCache = null;
       this.menu.hideGestureIndicator();
     }
   }
@@ -333,18 +362,30 @@
     return delta;
   }
 
-  function isHorizontalScrollArea(path) {
+  function isHorizontalScrollArea(path, deltaX) {
     for (const node of path) {
       if (!(node instanceof Element) || node === document.documentElement) continue;
 
       const style = getComputedStyle(node);
       if (!/(auto|scroll|overlay)/.test(style.overflowX)) continue;
 
-      if (node.scrollWidth - node.clientWidth > 2) return true;
+      // 중첩 스크롤러는 끝에 도달했더라도 제스처를 넘기지 않습니다.
+      if (node.scrollWidth - node.clientWidth > SCROLL_OVERFLOW_TOLERANCE) return true;
     }
 
+    // 문서 자체는 이 방향으로 실제 더 스크롤될 때만 양보합니다. 그렇지 않으면
+    // 몇 px만 가로로 넘치는 흔한 페이지에서 제스처가 통째로 죽습니다.
     const root = document.scrollingElement;
-    return Boolean(root && root.scrollWidth - root.clientWidth > 2);
+    return Boolean(root) && canScrollHorizontally(root, deltaX);
+  }
+
+  function canScrollHorizontally(element, deltaX) {
+    const maxScrollLeft = element.scrollWidth - element.clientWidth;
+    if (maxScrollLeft <= SCROLL_OVERFLOW_TOLERANCE) return false;
+
+    return deltaX < 0
+      ? element.scrollLeft > SCROLL_OVERFLOW_TOLERANCE
+      : element.scrollLeft < maxScrollLeft - SCROLL_OVERFLOW_TOLERANCE;
   }
 
   namespace.GestureController = GestureController;

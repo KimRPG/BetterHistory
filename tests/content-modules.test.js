@@ -15,7 +15,7 @@ const contentFiles = [
   "content/index.js"
 ];
 
-function loadContentModules() {
+function loadContentModules({ scrollingElement = null } = {}) {
   const listeners = [];
   const messages = [];
   const rootAttributes = new Set();
@@ -55,6 +55,7 @@ function loadContentModules() {
     }
   };
   const document = {
+    scrollingElement,
     documentElement: {
       hasAttribute(name) {
         return rootAttributes.has(name);
@@ -303,6 +304,61 @@ test("가로 스크롤 영역에서는 끝에 도달해도 기록 제스처를 �
 
   assert.equal(prevented, false);
   assert.equal(runtime.messages.length, 0);
+});
+
+test("문서가 그 방향으로 더 스크롤될 때만 제스처를 양보한다", () => {
+  const root = { clientWidth: 1200, scrollWidth: 1206, scrollLeft: 0 };
+  const runtime = loadContentModules({ scrollingElement: root });
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+
+  // 왼쪽 끝이라 뒤로가기 방향으로는 더 스크롤될 여지가 없습니다.
+  controller.handleWheel(createWheelEvent(0, -20));
+  controller.finishShortGesture();
+  assert.deepEqual(openedDirections, ["back"]);
+
+  // 오른쪽으로는 아직 스크롤이 남아 있으므로 페이지에 양보합니다.
+  let prevented = false;
+  const event = createWheelEvent(1000, 20);
+  event.preventDefault = () => {
+    prevented = true;
+  };
+  controller.handleWheel(event);
+  assert.equal(prevented, false);
+  assert.deepEqual(openedDirections, ["back"]);
+});
+
+test("같은 제스처 안에서는 스크롤 영역 판정을 다시 계산하지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const scroller = new runtime.Element();
+  let styleReads = 0;
+
+  Object.defineProperty(scroller, "computedStyle", {
+    get() {
+      styleReads += 1;
+      return { overflowX: "visible" };
+    }
+  });
+  controller.menu = createGestureMenuStub();
+
+  const target = {};
+  for (const timeStamp of [0, 40, 80, 120]) {
+    const event = createWheelEvent(timeStamp, -20);
+    event.target = target;
+    event.composedPath = () => [scroller];
+    controller.handleWheel(event);
+  }
+
+  assert.equal(styleReads, 1);
+  controller.endGestureCapture();
 });
 
 test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
