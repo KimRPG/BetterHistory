@@ -101,8 +101,8 @@
     handleWheel(event) {
       if (!this.settings.enabled || !event.isTrusted || event.ctrlKey) return;
 
-      const deltaX = toPixels(event.deltaX, event.deltaMode);
-      const deltaY = toPixels(event.deltaY, event.deltaMode);
+      const deltaX = toPixels(event.deltaX, event.deltaMode, "x");
+      const deltaY = toPixels(event.deltaY, event.deltaMode, "y");
       const absoluteX = Math.abs(deltaX);
       const absoluteY = Math.abs(deltaY);
       const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
@@ -356,9 +356,11 @@
     return directionIsInverted ? -wheelDelta : wheelDelta;
   }
 
-  function toPixels(delta, deltaMode) {
+  function toPixels(delta, deltaMode, axis) {
     if (deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * 16;
-    if (deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * window.innerWidth;
+    if (deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+      return delta * (axis === "y" ? window.innerHeight : window.innerWidth);
+    }
     return delta;
   }
 

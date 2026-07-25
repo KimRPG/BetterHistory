@@ -361,6 +361,26 @@ test("같은 제스처 안에서는 스크롤 영역 판정을 다시 계산하�
   controller.endGestureCapture();
 });
 
+test("페이지 단위 휠 값은 축에 맞는 크기로 환산한다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const selectionSteps = [];
+
+  controller.menu = createGestureMenuStub({
+    isOpen: () => true,
+    moveSelection: (step) => selectionSteps.push(step)
+  });
+
+  // deltaMode=DOM_DELTA_PAGE인 세로 값은 innerHeight(800)로 환산돼야 합니다.
+  const event = createWheelEvent(0, 0, -1);
+  event.deltaMode = 2;
+  controller.handleWheel(event);
+
+  // 800px / 38px 단계 = 21단계. innerWidth(1200)로 환산되면 31단계가 됩니다.
+  assert.equal(selectionSteps.length, 21);
+  controller.resetMenuSelection();
+});
+
 test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
