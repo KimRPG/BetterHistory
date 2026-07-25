@@ -165,64 +165,64 @@ test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", asyn
   ]);
 });
 
-test("500ms 전에 끝난 가로 제스처는 한 단계 이동한다", async () => {
+test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  controller.handleWheel(createWheelEvent(0, -0.6));
+  controller.handleWheel(createWheelEvent(300, -0.6));
+  controller.finishShortGesture();
+
+  assert.deepEqual(openedDirections, ["back"]);
+});
+
+test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
 
   controller.menu = createGestureMenuStub();
-  controller.handleWheel(createWheelEvent(0, -0.6));
-  controller.handleWheel(createWheelEvent(300, -0.6));
-  controller.finishShortGesture();
+
+  for (const timeStamp of [0, 250, 499]) {
+    controller.handleWheel(createWheelEvent(timeStamp));
+  }
+  assert.equal(runtime.messages.length, 0);
+
+  controller.handleWheel(createWheelEvent(500));
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
     type: "NAVIGATE_ONE_STEP",
     direction: "back"
   });
-});
-
-test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", () => {
-  const runtime = loadContentModules();
-  const controller = new runtime.namespace.GestureController();
-  const openedDirections = [];
-
-  controller.menu = createGestureMenuStub({
-    open: (direction) => {
-      openedDirections.push(direction);
-      return Promise.resolve(true);
-    }
-  });
-
-  for (const timeStamp of [0, 250, 499]) {
-    controller.handleWheel(createWheelEvent(timeStamp));
-  }
-  assert.deepEqual(openedDirections, []);
-
-  controller.handleWheel(createWheelEvent(500));
-  assert.deepEqual(openedDirections, ["back"]);
   controller.endGestureCapture();
 });
 
-test("설정한 대기 시간이 지나야 히스토리 메뉴를 연다", () => {
+test("설정한 기준 시간이 지나야 한 단계 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
-  const openedDirections = [];
 
   controller.settings.holdDurationMs = 700;
-  controller.menu = createGestureMenuStub({
-    open: (direction) => {
-      openedDirections.push(direction);
-      return Promise.resolve(true);
-    }
-  });
+  controller.menu = createGestureMenuStub();
 
   for (const timeStamp of [0, 300, 500, 699]) {
     controller.handleWheel(createWheelEvent(timeStamp));
   }
-  assert.deepEqual(openedDirections, []);
+  assert.equal(runtime.messages.length, 0);
 
   controller.handleWheel(createWheelEvent(700));
-  assert.deepEqual(openedDirections, ["back"]);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
   controller.endGestureCapture();
 });
 

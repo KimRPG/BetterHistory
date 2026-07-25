@@ -192,7 +192,7 @@ test("앞으로가기 메시지의 방향을 서비스 워커에 전달한다", 
   assert.equal(response.entries[0].id, 40);
 });
 
-test("짧은 제스처 방향으로 한 단계 이동한다", async () => {
+test("요청한 방향으로 한 단계 이동한다", async () => {
   const runtime = loadWorker(sampleHistory);
   const listener = runtime.getMessageListener();
   const responses = [];

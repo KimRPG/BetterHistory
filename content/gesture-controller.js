@@ -12,7 +12,6 @@
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;
   const HORIZONTAL_RATIO = 1.25;
-  const VERTICAL_SELECTION_STEP = 38;
   const DISMISS_GESTURE_THRESHOLD = 28;
   const DISMISS_GESTURE_MAX_DISTANCE = 72;
 
@@ -20,17 +19,13 @@
     constructor() {
       this.settings = { ...DEFAULT_SETTINGS };
       this.gestureStartedAt = null;
-      this.verticalDistance = 0;
       this.gestureTriggered = false;
-      this.verticalSelectionUsed = false;
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
-      this.releaseTimer = null;
       this.dismissTimer = null;
       this.dismissDistance = 0;
       this.dismissGestureActive = false;
       this.dismissArmed = false;
-      this.pendingReleaseSelection = false;
       this.waitingForDocumentRoot = false;
 
       this.menu = new namespace.HistoryMenu(namespace.historyClient, {
@@ -125,18 +120,6 @@
         return;
       }
 
-      if (this.gestureTriggered && this.menu.isOpen()) {
-        if (!event.cancelable) return;
-        event.preventDefault();
-
-        if (absoluteY > 0.5 && absoluteY >= absoluteX * 0.55) {
-          this.updateGestureSelection(event, deltaY);
-        }
-
-        this.scheduleGestureRelease();
-        return;
-      }
-
       if (!horizontal || absoluteX < 0.5) return;
 
       if (this.menu.isOpen() && getFingerDelta(event, deltaX) > 0) {
@@ -148,6 +131,15 @@
       if (!event.cancelable) return;
 
       event.preventDefault();
+
+      if (this.gestureTriggered) {
+        clearTimeout(this.gestureIdleTimer);
+        this.gestureIdleTimer = setTimeout(
+          () => this.endGestureCapture(),
+          GESTURE_IDLE_MS
+        );
+        return;
+      }
 
       const direction = this.getHistoryDirection(deltaX);
       if (this.menu.isOpen()) {
@@ -175,27 +167,25 @@
         GESTURE_IDLE_MS
       );
 
-      if (
-        this.gestureTriggered ||
-        gestureDuration < this.settings.holdDurationMs
-      ) {
+      if (gestureDuration < this.settings.holdDurationMs) {
         return;
       }
 
       this.gestureTriggered = true;
       clearTimeout(this.gestureIdleTimer);
-      this.gestureIdleTimer = null;
+      this.gestureIdleTimer = setTimeout(
+        () => this.endGestureCapture(),
+        GESTURE_IDLE_MS
+      );
       this.menu.hideGestureIndicator();
-      this.pendingReleaseSelection = false;
-      void this.openHistoryMenu(direction);
-      this.scheduleGestureRelease();
+      void this.navigateOneStep(direction);
     }
 
     finishShortGesture() {
       const direction = this.gestureDirection;
-      const shouldNavigate = !this.gestureTriggered && direction !== null;
+      const shouldOpenMenu = !this.gestureTriggered && direction !== null;
       this.endGestureCapture();
-      if (shouldNavigate) void this.navigateOneStep(direction);
+      if (shouldOpenMenu) void this.openHistoryMenu(direction);
     }
 
     async navigateOneStep(direction) {
@@ -211,17 +201,6 @@
         ? deltaX < 0
         : deltaX > 0;
       return isBackDirection ? "back" : "forward";
-    }
-
-    updateGestureSelection(event, deltaY) {
-      this.verticalDistance += getFingerDelta(event, deltaY);
-
-      while (Math.abs(this.verticalDistance) >= VERTICAL_SELECTION_STEP) {
-        const step = this.verticalDistance > 0 ? 1 : -1;
-        this.verticalDistance -= step * VERTICAL_SELECTION_STEP;
-        this.verticalSelectionUsed = true;
-        this.menu.moveSelection(step);
-      }
     }
 
     updateDismissGesture(event, deltaX) {
@@ -268,39 +247,8 @@
       this.menu.cancelDismissPreview({ restoreHelp });
     }
 
-    scheduleGestureRelease() {
-      clearTimeout(this.releaseTimer);
-      this.releaseTimer = setTimeout(
-        () => this.finishGestureAfterRelease(),
-        GESTURE_RELEASE_MS
-      );
-    }
-
-    finishGestureAfterRelease() {
-      const shouldNavigate = this.verticalSelectionUsed;
-      clearTimeout(this.releaseTimer);
-      this.releaseTimer = null;
-
-      if (shouldNavigate && this.menu.isBusy()) {
-        this.pendingReleaseSelection = true;
-        this.endGestureCapture({ keepPendingSelection: true });
-        return;
-      }
-
-      this.endGestureCapture();
-      if (shouldNavigate) void this.navigateSelectedEntry();
-    }
-
     async openHistoryMenu(direction) {
       await this.menu.open(direction);
-      if (this.pendingReleaseSelection) void this.navigateSelectedEntry();
-    }
-
-    async navigateSelectedEntry() {
-      const selected = this.menu.getSelected();
-      this.pendingReleaseSelection = false;
-      if (!selected) return false;
-      return this.navigateEntry(selected.entry, selected.button);
     }
 
     async navigateEntry(entry, button) {
@@ -329,17 +277,12 @@
       this.endGestureCapture();
     }
 
-    endGestureCapture({ keepPendingSelection = false } = {}) {
+    endGestureCapture() {
       clearTimeout(this.gestureIdleTimer);
-      clearTimeout(this.releaseTimer);
       this.gestureIdleTimer = null;
-      this.releaseTimer = null;
       this.gestureStartedAt = null;
-      this.verticalDistance = 0;
       this.gestureTriggered = false;
-      this.verticalSelectionUsed = false;
       this.gestureDirection = null;
-      if (!keepPendingSelection) this.pendingReleaseSelection = false;
       this.menu.hideGestureIndicator();
     }
   }
