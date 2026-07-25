@@ -1,3 +1,20 @@
 html[data-gesture-back-history-navigation] {
   overscroll-behavior-x: none !important;
 }
+
+html[data-gesture-back-history-page-motion] {
+  overflow-x: clip !important;
+}
+
+html[data-gesture-back-history-page-motion] > body {
+  translate: var(--gesture-back-history-page-shift, 0px) 0 !important;
+  transition: translate var(--gesture-back-history-page-duration, 0ms)
+    cubic-bezier(.22, 1, .36, 1) !important;
+  will-change: translate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-gesture-back-history-page-motion] > body {
+    transition-duration: 0ms !important;
+  }
+}

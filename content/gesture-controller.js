@@ -9,8 +9,14 @@
   });
   const HOLD_DURATION_OPTIONS = Object.freeze([100, 200, 300, 500]);
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
+  const PAGE_MOTION_ATTRIBUTE = "data-gesture-back-history-page-motion";
+  const PAGE_SHIFT_PROPERTY = "--gesture-back-history-page-shift";
+  const PAGE_DURATION_PROPERTY = "--gesture-back-history-page-duration";
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;
+  const PAGE_MOTION_RELEASE_MS = 220;
+  const PAGE_MOTION_SCALE = 0.72;
+  const PAGE_MOTION_MAX_DISTANCE = 72;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
   const DISMISS_GESTURE_THRESHOLD = 28;
@@ -23,6 +29,8 @@
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
+      this.pageMotionDistance = 0;
+      this.pageMotionResetTimer = null;
       this.menuSelectionDistance = 0;
       this.menuSelectionUsed = false;
       this.menuSelectionTimer = null;
@@ -164,6 +172,7 @@
         this.resetGesture();
       }
       this.gestureDirection = direction;
+      this.updatePageMotion(event, deltaX);
 
       if (this.gestureStartedAt === null) {
         this.gestureStartedAt = event.timeStamp;
@@ -215,6 +224,53 @@
         ? deltaX < 0
         : deltaX > 0;
       return isBackDirection ? "back" : "forward";
+    }
+
+    updatePageMotion(event, deltaX) {
+      const root = document.documentElement;
+      if (!root) return;
+
+      clearTimeout(this.pageMotionResetTimer);
+      this.pageMotionResetTimer = null;
+      this.pageMotionDistance = Math.min(
+        PAGE_MOTION_MAX_DISTANCE,
+        Math.max(
+          -PAGE_MOTION_MAX_DISTANCE,
+          this.pageMotionDistance + getFingerDelta(event, deltaX) * PAGE_MOTION_SCALE
+        )
+      );
+
+      root.setAttribute(PAGE_MOTION_ATTRIBUTE, "");
+      root.style.setProperty(PAGE_DURATION_PROPERTY, "0ms");
+      root.style.setProperty(
+        PAGE_SHIFT_PROPERTY,
+        `${this.pageMotionDistance.toFixed(2)}px`
+      );
+    }
+
+    releasePageMotion() {
+      const root = document.documentElement;
+      this.pageMotionDistance = 0;
+      if (!root?.hasAttribute(PAGE_MOTION_ATTRIBUTE)) return;
+
+      root.style.setProperty(PAGE_DURATION_PROPERTY, `${PAGE_MOTION_RELEASE_MS}ms`);
+      root.style.setProperty(PAGE_SHIFT_PROPERTY, "0px");
+      clearTimeout(this.pageMotionResetTimer);
+      this.pageMotionResetTimer = setTimeout(
+        () => this.clearPageMotion(),
+        PAGE_MOTION_RELEASE_MS
+      );
+    }
+
+    clearPageMotion() {
+      clearTimeout(this.pageMotionResetTimer);
+      this.pageMotionResetTimer = null;
+      this.pageMotionDistance = 0;
+
+      const root = document.documentElement;
+      root?.removeAttribute(PAGE_MOTION_ATTRIBUTE);
+      root?.style.removeProperty(PAGE_SHIFT_PROPERTY);
+      root?.style.removeProperty(PAGE_DURATION_PROPERTY);
     }
 
     updateMenuSelection(event, deltaY) {
@@ -354,6 +410,7 @@
       this.gestureStartedAt = null;
       this.gestureTriggered = false;
       this.gestureDirection = null;
+      this.releasePageMotion();
       this.menu.hideGestureIndicator();
     }
   }

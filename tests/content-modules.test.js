@@ -18,6 +18,7 @@ function loadContentModules() {
   const listeners = [];
   const messages = [];
   const rootAttributes = new Set();
+  const rootStyles = new Map();
   const chrome = {
     runtime: {
       getURL(resourcePath) {
@@ -55,6 +56,23 @@ function loadContentModules() {
   };
   const document = {
     documentElement: {
+      hasAttribute(name) {
+        return rootAttributes.has(name);
+      },
+      removeAttribute(name) {
+        rootAttributes.delete(name);
+      },
+      setAttribute(name) {
+        rootAttributes.add(name);
+      },
+      style: {
+        removeProperty(name) {
+          rootStyles.delete(name);
+        },
+        setProperty(name, value) {
+          rootStyles.set(name, value);
+        }
+      },
       toggleAttribute(name, force) {
         if (force) rootAttributes.add(name);
         else rootAttributes.delete(name);
@@ -88,7 +106,8 @@ function loadContentModules() {
     listeners,
     messages,
     namespace: context.GestureBackHistory,
-    rootAttributes
+    rootAttributes,
+    rootStyles
   };
 }
 
@@ -181,6 +200,25 @@ test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", ()
   controller.finishShortGesture();
 
   assert.deepEqual(openedDirections, ["back"]);
+  controller.clearPageMotion();
+});
+
+test("가로 제스처를 따라 페이지가 움직이고 끝나면 원위치로 돌아온다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const motionAttribute = "data-gesture-back-history-page-motion";
+  const shiftProperty = "--gesture-back-history-page-shift";
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createWheelEvent(0, -20));
+
+  assert.equal(runtime.rootAttributes.has(motionAttribute), true);
+  assert.equal(parseFloat(runtime.rootStyles.get(shiftProperty)) > 0, true);
+
+  controller.finishShortGesture();
+  assert.equal(runtime.rootStyles.get(shiftProperty), "0px");
+  controller.clearPageMotion();
+  assert.equal(runtime.rootAttributes.has(motionAttribute), false);
 });
 
 test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
@@ -202,6 +240,7 @@ test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () 
     direction: "back"
   });
   controller.endGestureCapture();
+  controller.clearPageMotion();
 });
 
 test("설정한 기준 시간이 지나야 한 단계 이동한다", async () => {
@@ -224,6 +263,7 @@ test("설정한 기준 시간이 지나야 한 단계 이동한다", async () =>
     direction: "back"
   });
   controller.endGestureCapture();
+  controller.clearPageMotion();
 });
 
 test("열린 메뉴에서 세로 제스처로 항목을 선택하고 손을 떼면 이동한다", async () => {
