@@ -4,9 +4,9 @@
   const namespace = globalThis.GestureBackHistory ??= {};
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
-    gestureDirection: "right",
-    threshold: 90
+    gestureDirection: "right"
   });
+  const GESTURE_HOLD_MS = 500;
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;
   const HORIZONTAL_RATIO = 1.25;
@@ -17,7 +17,7 @@
   class GestureController {
     constructor() {
       this.settings = { ...DEFAULT_SETTINGS };
-      this.swipeDistance = 0;
+      this.gestureStartedAt = null;
       this.verticalDistance = 0;
       this.gestureTriggered = false;
       this.verticalSelectionUsed = false;
@@ -130,10 +130,13 @@
       }
       this.gestureDirection = direction;
 
-      this.swipeDistance += absoluteX;
+      if (this.gestureStartedAt === null) {
+        this.gestureStartedAt = event.timeStamp;
+      }
+      const gestureDuration = Math.max(0, event.timeStamp - this.gestureStartedAt);
       this.menu.showGestureIndicator(
         event.clientY,
-        this.swipeDistance / this.settings.threshold,
+        gestureDuration / GESTURE_HOLD_MS,
         direction
       );
 
@@ -143,7 +146,7 @@
         GESTURE_IDLE_MS
       );
 
-      if (this.gestureTriggered || this.swipeDistance < this.settings.threshold) {
+      if (this.gestureTriggered || gestureDuration < GESTURE_HOLD_MS) {
         return;
       }
 
@@ -284,7 +287,7 @@
       clearTimeout(this.releaseTimer);
       this.gestureTimer = null;
       this.releaseTimer = null;
-      this.swipeDistance = 0;
+      this.gestureStartedAt = null;
       this.verticalDistance = 0;
       this.gestureTriggered = false;
       this.verticalSelectionUsed = false;
@@ -295,13 +298,9 @@
   }
 
   function sanitizeSettings(candidate) {
-    const threshold = Number(candidate?.threshold);
     return {
       enabled: candidate?.enabled !== false,
-      gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
-      threshold: [60, 90, 130].includes(threshold)
-        ? threshold
-        : DEFAULT_SETTINGS.threshold
+      gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right"
     };
   }
 

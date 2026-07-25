@@ -51,7 +51,12 @@ function loadContentModules() {
     clearTimeout,
     console,
     document: {},
+    Element: class Element {},
     setTimeout,
+    WheelEvent: {
+      DOM_DELTA_LINE: 1,
+      DOM_DELTA_PAGE: 2
+    },
     window
   });
 
@@ -102,6 +107,33 @@ test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", asyn
   ]);
 });
 
+test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = {
+    hideGestureIndicator() {},
+    isBusy: () => false,
+    isEventFromUi: () => false,
+    isOpen: () => false,
+    open(direction) {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    },
+    showGestureIndicator() {}
+  };
+
+  for (const timeStamp of [0, 250, 499]) {
+    controller.handleWheel(createWheelEvent(timeStamp));
+  }
+  assert.deepEqual(openedDirections, []);
+
+  controller.handleWheel(createWheelEvent(500));
+  assert.deepEqual(openedDirections, ["back"]);
+  controller.endGestureCapture();
+});
+
 test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
@@ -129,3 +161,19 @@ test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된
   ]);
   controller.cancelDismissGesture();
 });
+
+function createWheelEvent(timeStamp) {
+  return {
+    cancelable: true,
+    clientY: 400,
+    composedPath: () => [],
+    ctrlKey: false,
+    deltaMode: 0,
+    deltaX: -8,
+    deltaY: 0,
+    isTrusted: true,
+    preventDefault() {},
+    timeStamp,
+    webkitDirectionInvertedFromDevice: true
+  };
+}

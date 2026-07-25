@@ -2,13 +2,11 @@
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  gestureDirection: "right",
-  threshold: 90
+  gestureDirection: "right"
 };
 
 const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
-const thresholdInput = document.querySelector("#threshold");
 const status = document.querySelector("#status");
 let statusTimer = null;
 
@@ -19,9 +17,6 @@ async function initialize() {
     const settings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
     enabledInput.checked = settings.enabled !== false;
     directionInput.value = settings.gestureDirection === "left" ? "left" : "right";
-    thresholdInput.value = [60, 90, 130].includes(Number(settings.threshold))
-      ? String(settings.threshold)
-      : String(DEFAULT_SETTINGS.threshold);
   } catch (error) {
     showStatus(error instanceof Error ? error.message : String(error), true);
   }
@@ -29,14 +24,12 @@ async function initialize() {
 
 enabledInput.addEventListener("change", save);
 directionInput.addEventListener("change", save);
-thresholdInput.addEventListener("change", save);
 
 async function save() {
   try {
     await chrome.storage.sync.set({
       enabled: enabledInput.checked,
-      gestureDirection: directionInput.value,
-      threshold: Number(thresholdInput.value)
+      gestureDirection: directionInput.value
     });
     showStatus("저장됨");
   } catch (error) {
