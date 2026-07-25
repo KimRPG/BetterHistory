@@ -7,7 +7,7 @@
     gestureDirection: "right",
     holdDurationMs: 500
   });
-  const HOLD_DURATION_OPTIONS = Object.freeze([300, 500, 700, 1000]);
+  const HOLD_DURATION_OPTIONS = Object.freeze([100, 200, 300, 500]);
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;

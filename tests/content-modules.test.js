@@ -208,15 +208,15 @@ test("설정한 기준 시간이 지나야 한 단계 이동한다", async () =>
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
 
-  controller.settings.holdDurationMs = 700;
+  controller.settings.holdDurationMs = 200;
   controller.menu = createGestureMenuStub();
 
-  for (const timeStamp of [0, 300, 500, 699]) {
+  for (const timeStamp of [0, 100, 199]) {
     controller.handleWheel(createWheelEvent(timeStamp));
   }
   assert.equal(runtime.messages.length, 0);
 
-  controller.handleWheel(createWheelEvent(700));
+  controller.handleWheel(createWheelEvent(200));
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {

@@ -5,7 +5,7 @@ const DEFAULT_SETTINGS = {
   gestureDirection: "right",
   holdDurationMs: 500
 };
-const HOLD_DURATION_OPTIONS = [300, 500, 700, 1000];
+const HOLD_DURATION_OPTIONS = [100, 200, 300, 500];
 
 const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
