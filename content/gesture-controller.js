@@ -106,7 +106,6 @@
       const absoluteX = Math.abs(deltaX);
       const absoluteY = Math.abs(deltaY);
       const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
-      const eventFromExtensionUi = this.menu.isEventFromUi(event);
 
       if (
         this.menu.isOpen() &&
@@ -122,7 +121,7 @@
         return;
       }
 
-      if (eventFromExtensionUi) return;
+      if (this.menu.isEventFromUi(event)) return;
 
       if (!horizontal || absoluteX < 0.5) return;
 
@@ -132,17 +131,13 @@
       event.preventDefault();
 
       if (this.gestureTriggered) {
-        clearTimeout(this.gestureIdleTimer);
-        this.gestureIdleTimer = setTimeout(
-          () => this.endGestureCapture(),
-          GESTURE_IDLE_MS
-        );
+        this.restartIdleTimer(() => this.endGestureCapture());
         return;
       }
 
       const direction = this.getHistoryDirection(deltaX);
       if (this.gestureDirection && this.gestureDirection !== direction) {
-        this.resetGesture();
+        this.endGestureCapture();
       }
       this.gestureDirection = direction;
       this.gestureShift = clamp(
@@ -161,11 +156,7 @@
         shift: this.gestureShift
       });
 
-      clearTimeout(this.gestureIdleTimer);
-      this.gestureIdleTimer = setTimeout(
-        () => this.finishShortGesture(),
-        GESTURE_IDLE_MS
-      );
+      this.restartIdleTimer(() => this.finishShortGesture());
 
       if (gestureDuration < this.settings.holdDurationMs) {
         return;
@@ -178,13 +169,14 @@
       }
 
       this.gestureTriggered = true;
-      clearTimeout(this.gestureIdleTimer);
-      this.gestureIdleTimer = setTimeout(
-        () => this.endGestureCapture(),
-        GESTURE_IDLE_MS
-      );
+      this.restartIdleTimer(() => this.endGestureCapture());
       this.menu.hideGestureIndicator();
       void this.navigateOneStep(direction);
+    }
+
+    restartIdleTimer(onIdle) {
+      clearTimeout(this.gestureIdleTimer);
+      this.gestureIdleTimer = setTimeout(onIdle, GESTURE_IDLE_MS);
     }
 
     finishShortGesture() {
@@ -327,10 +319,6 @@
     closeMenu() {
       this.resetMenuSelection();
       this.menu.close();
-      this.endGestureCapture();
-    }
-
-    resetGesture() {
       this.endGestureCapture();
     }
 
