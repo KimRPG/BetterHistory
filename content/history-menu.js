@@ -85,7 +85,7 @@
       return Boolean(this.host && event.target === this.host);
     }
 
-    showGestureIndicator(clientY, progress, direction) {
+    showGestureIndicator({ clientY, progress, direction, shift = 0 }) {
       if (!this.ensure()) return;
 
       const clampedProgress = Math.min(1, Math.max(0.08, progress));
@@ -93,6 +93,7 @@
         ? Math.min(window.innerHeight - 48, Math.max(48, clientY))
         : window.innerHeight / 2;
       this.indicator.style.setProperty("--progress", String(clampedProgress));
+      this.indicator.style.setProperty("--shift", `${shift.toFixed(2)}px`);
       this.indicator.style.top = `${y}px`;
       this.indicator.classList.toggle("forward", direction === "forward");
       this.indicator.classList.add("visible");
@@ -100,6 +101,7 @@
 
     hideGestureIndicator() {
       this.indicator?.classList.remove("visible");
+      this.indicator?.style.setProperty("--shift", "0px");
     }
 
     async open(direction) {

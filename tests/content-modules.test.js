@@ -19,7 +19,6 @@ function loadContentModules() {
   const listeners = [];
   const messages = [];
   const rootAttributes = new Set();
-  const rootStyles = new Map();
   const chrome = {
     runtime: {
       getURL(resourcePath) {
@@ -66,14 +65,6 @@ function loadContentModules() {
       setAttribute(name) {
         rootAttributes.add(name);
       },
-      style: {
-        removeProperty(name) {
-          rootStyles.delete(name);
-        },
-        setProperty(name, value) {
-          rootStyles.set(name, value);
-        }
-      },
       toggleAttribute(name, force) {
         if (force) rootAttributes.add(name);
         else rootAttributes.delete(name);
@@ -109,8 +100,7 @@ function loadContentModules() {
     listeners,
     messages,
     namespace: context.GestureBackHistory,
-    rootAttributes,
-    rootStyles
+    rootAttributes
   };
 }
 
@@ -244,25 +234,52 @@ test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", ()
   controller.finishShortGesture();
 
   assert.deepEqual(openedDirections, ["back"]);
-  controller.clearPageMotion();
 });
 
-test("가로 제스처를 따라 페이지가 움직이고 끝나면 원위치로 돌아온다", () => {
+test("페이지 본문에는 어떤 변환도 걸지 않는다", () => {
+  const pageStyles = fs
+    .readFileSync(path.join(__dirname, "..", "content", "page-styles.css"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // body에 translate를 걸면 position: fixed 자손의 containing block이 되어
+  // 고정 헤더가 튀므로, 이 파일은 오버스크롤 차단만 담당해야 합니다.
+  assert.equal(/translate|transform|will-change|overflow-x: clip/.test(pageStyles), false);
+  assert.equal(pageStyles.includes("overscroll-behavior-x: none"), true);
+});
+
+test("가로 제스처를 따라 인디케이터가 손가락 방향으로 움직인다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
-  const motionAttribute = "data-gesture-back-history-page-motion";
-  const shiftProperty = "--gesture-back-history-page-shift";
+  const shifts = [];
 
-  controller.menu = createGestureMenuStub();
+  controller.menu = createGestureMenuStub({
+    showGestureIndicator: ({ shift }) => shifts.push(shift)
+  });
   controller.handleWheel(createWheelEvent(0, -20));
+  controller.handleWheel(createWheelEvent(60, -20));
 
-  assert.equal(runtime.rootAttributes.has(motionAttribute), true);
-  assert.equal(parseFloat(runtime.rootStyles.get(shiftProperty)) > 0, true);
+  assert.equal(shifts.length, 2);
+  assert.equal(shifts[0] > 0, true);
+  assert.equal(shifts[1] > shifts[0], true);
 
-  controller.finishShortGesture();
-  assert.equal(runtime.rootStyles.get(shiftProperty), "0px");
-  controller.clearPageMotion();
-  assert.equal(runtime.rootAttributes.has(motionAttribute), false);
+  controller.endGestureCapture();
+  assert.equal(controller.gestureShift, 0);
+});
+
+test("인디케이터 이동량은 상한을 넘지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const shifts = [];
+
+  controller.menu = createGestureMenuStub({
+    showGestureIndicator: ({ shift }) => shifts.push(shift)
+  });
+  for (const timeStamp of [0, 20, 40, 60, 80, 100]) {
+    controller.handleWheel(createWheelEvent(timeStamp, -400));
+  }
+
+  assert.equal(shifts.at(-1) <= 40, true);
+  controller.endGestureCapture();
 });
 
 test("가로 스크롤 영역에서는 끝에 도달해도 기록 제스처를 시작하지 않는다", () => {
@@ -286,10 +303,6 @@ test("가로 스크롤 영역에서는 끝에 도달해도 기록 제스처를 �
 
   assert.equal(prevented, false);
   assert.equal(runtime.messages.length, 0);
-  assert.equal(
-    runtime.rootAttributes.has("data-gesture-back-history-page-motion"),
-    false
-  );
 });
 
 test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
@@ -311,7 +324,6 @@ test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () 
     direction: "back"
   });
   controller.endGestureCapture();
-  controller.clearPageMotion();
 });
 
 test("설정한 기준 시간이 지나야 한 단계 이동한다", async () => {
@@ -334,7 +346,6 @@ test("설정한 기준 시간이 지나야 한 단계 이동한다", async () =>
     direction: "back"
   });
   controller.endGestureCapture();
-  controller.clearPageMotion();
 });
 
 for (const holdDurationMs of [100, 200]) {
@@ -355,7 +366,6 @@ for (const holdDurationMs of [100, 200]) {
       type: "NAVIGATE_ONE_STEP",
       direction: "back"
     });
-    controller.clearPageMotion();
   });
 
   test(`${durationLabel} 설정에서는 길게 당기면 히스토리 메뉴를 연다`, () => {
@@ -377,7 +387,6 @@ for (const holdDurationMs of [100, 200]) {
 
     controller.handleWheel(createWheelEvent(holdDurationMs));
     assert.deepEqual(openedDirections, ["back"]);
-    controller.clearPageMotion();
   });
 }
 
@@ -425,10 +434,6 @@ test("열린 메뉴에서는 가로 제스처를 무시한다", () => {
 
   assert.equal(prevented, true);
   assert.equal(runtime.messages.length, 0);
-  assert.equal(
-    runtime.rootAttributes.has("data-gesture-back-history-page-motion"),
-    false
-  );
 });
 
 function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {

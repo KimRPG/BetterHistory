@@ -8,6 +8,7 @@
     * { box-sizing: border-box; }
     .indicator {
       --progress: 0;
+      --shift: 0px;
       align-items: center;
       background: rgba(31, 35, 41, 0.9);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -22,7 +23,8 @@
       pointer-events: none;
       position: fixed;
       top: 50%;
-      transform: translateY(-50%) scale(calc(0.82 + var(--progress) * 0.18));
+      transform: translate(var(--shift), -50%)
+        scale(calc(0.82 + var(--progress) * 0.18));
       width: 46px;
     }
     .indicator.visible { display: flex; }

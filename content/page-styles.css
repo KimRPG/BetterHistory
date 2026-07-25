@@ -1,20 +1,7 @@
+/* 확장이 켜진 동안에는 Chrome 기본 가로 오버스크롤 탐색만 막습니다.
+   페이지 본문에 translate 같은 변환을 걸면 그 요소가 position: fixed 자손의
+   containing block이 되어 고정 헤더·배너가 튀므로, 시각 피드백은 확장이
+   직접 그리는 인디케이터에서만 처리합니다. */
 html[data-gesture-back-history-navigation] {
   overscroll-behavior-x: none !important;
-}
-
-html[data-gesture-back-history-page-motion] {
-  overflow-x: clip !important;
-}
-
-html[data-gesture-back-history-page-motion] > body {
-  translate: var(--gesture-back-history-page-shift, 0px) 0 !important;
-  transition: translate var(--gesture-back-history-page-duration, 0ms)
-    cubic-bezier(.22, 1, .36, 1) !important;
-  will-change: translate;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html[data-gesture-back-history-page-motion] > body {
-    transition-duration: 0ms !important;
-  }
 }
