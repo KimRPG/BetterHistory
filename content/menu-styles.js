@@ -219,6 +219,26 @@
       text-align: center;
     }
     .gesture-help b { color: #2563eb; font-size: 14px; line-height: 1; }
+    .toast {
+      background: rgba(31, 35, 41, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 10px;
+      bottom: 28px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+      color: #f5f6f7;
+      display: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      left: 50%;
+      line-height: 1.45;
+      max-width: min(360px, calc(100vw - 40px));
+      padding: 9px 14px;
+      pointer-events: none;
+      position: fixed;
+      text-align: center;
+      transform: translateX(-50%);
+    }
+    .toast.visible { display: block; }
     @media (prefers-color-scheme: dark) {
       .panel { background: rgba(34, 36, 40, .97); border-color: rgba(255,255,255,.12); color: #f5f6f7; }
       .header { border-bottom-color: rgba(255,255,255,.09); }

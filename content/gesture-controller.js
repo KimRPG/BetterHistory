@@ -209,7 +209,9 @@
       try {
         await namespace.historyClient.navigateOneStep(direction);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         console.warn("GestureBackHistory: 한 단계 이동에 실패했습니다.", error);
+        this.menu.showToast(message);
       }
     }
 

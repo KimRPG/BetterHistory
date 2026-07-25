@@ -512,6 +512,23 @@ test("열린 메뉴에서는 가로 제스처를 무시한다", () => {
   assert.equal(runtime.messages.length, 0);
 });
 
+test("한 단계 이동이 실패하면 토스트로 알린다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const toasts = [];
+
+  controller.menu = createGestureMenuStub({
+    showToast: (message) => toasts.push(message)
+  });
+  runtime.chrome.runtime.sendMessage = async () => ({
+    ok: false,
+    error: "탭이 닫혔거나 더 이상 사용할 수 없습니다."
+  });
+
+  await controller.navigateOneStep("back");
+  assert.deepEqual(toasts, ["탭이 닫혔거나 더 이상 사용할 수 없습니다."]);
+});
+
 function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {
   return {
     cancelable: true,
@@ -530,6 +547,7 @@ function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {
 
 function createGestureMenuStub(overrides = {}) {
   return {
+    getSelected: () => null,
     hideGestureIndicator() {},
     isBusy: () => false,
     isEventFromUi: () => false,
@@ -537,6 +555,7 @@ function createGestureMenuStub(overrides = {}) {
     moveSelection() {},
     open: () => Promise.resolve(true),
     showGestureIndicator() {},
+    showToast() {},
     ...overrides
   };
 }

@@ -3,6 +3,7 @@
 
   const namespace = globalThis.GestureBackHistory ??= {};
   const DEFAULT_GESTURE_HELP = "당긴 채 위·아래로 선택하고 손을 떼면 이동";
+  const TOAST_DURATION_MS = 2600;
 
   class HistoryMenu {
     constructor(client, handlers = {}) {
@@ -18,12 +19,14 @@
       this.heading = null;
       this.eyebrow = null;
       this.gestureHelp = null;
+      this.toast = null;
 
       this.busy = false;
       this.direction = null;
       this.entries = [];
       this.selectedIndex = -1;
       this.selectionOffset = 0;
+      this.toastTimer = null;
     }
 
     ensure() {
@@ -59,6 +62,7 @@
           <div class="list" role="list"></div>
           <div class="gesture-help"><b aria-hidden="true">↕</b><span>${DEFAULT_GESTURE_HELP}</span></div>
         </section>
+        <div class="toast" role="status" aria-live="polite"></div>
       `;
 
       this.indicator = this.shadow.querySelector(".indicator");
@@ -67,6 +71,7 @@
       this.heading = this.shadow.querySelector("h2");
       this.eyebrow = this.shadow.querySelector(".eyebrow");
       this.gestureHelp = this.shadow.querySelector(".gesture-help span");
+      this.toast = this.shadow.querySelector(".toast");
       this.shadow
         .querySelector(".close")
         .addEventListener("click", () => this.onCloseRequest());
@@ -102,6 +107,19 @@
     hideGestureIndicator() {
       this.indicator?.classList.remove("visible");
       this.indicator?.style.setProperty("--shift", "0px");
+    }
+
+    showToast(message) {
+      if (!message || !this.ensure()) return;
+
+      clearTimeout(this.toastTimer);
+      this.toast.textContent = message;
+      this.toast.classList.add("visible");
+      this.toastTimer = setTimeout(() => {
+        this.toastTimer = null;
+        this.toast.classList.remove("visible");
+        this.toast.textContent = "";
+      }, TOAST_DURATION_MS);
     }
 
     async open(direction) {
