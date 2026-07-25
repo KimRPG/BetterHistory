@@ -109,6 +109,7 @@
       overscroll-behavior: contain;
       padding: 7px;
     }
+    .rows { display: flex; flex-direction: column; }
     .entry {
       align-items: center;
       appearance: none;

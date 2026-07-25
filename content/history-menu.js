@@ -61,7 +61,7 @@
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
             </button>
           </header>
-          <div class="list" role="list"></div>
+          <div class="list"></div>
           <div class="gesture-help"><b aria-hidden="true">↕</b><span>${DEFAULT_GESTURE_HELP}</span></div>
         </section>
         <div class="toast" role="status" aria-live="polite"></div>
@@ -241,7 +241,6 @@
 
     renderEntries(entries) {
       this.clearDismissTimer();
-      this.list.replaceChildren();
       this.entries = entries;
 
       if (!entries.length) {
@@ -252,15 +251,24 @@
         return;
       }
 
+      const rows = document.createElement("div");
+      rows.className = "rows";
+      rows.setAttribute("role", "list");
+
       for (const entry of entries) {
         const button = this.createEntryButton(entry);
         button.addEventListener(
           "click",
           () => this.onSelect(entry, button)
         );
-        this.list.append(button);
+
+        const row = document.createElement("div");
+        row.setAttribute("role", "listitem");
+        row.append(button);
+        rows.append(row);
       }
 
+      this.list.replaceChildren(rows);
       this.selectedIndex = Math.min(
         entries.length - 1,
         Math.max(0, this.selectionOffset)
@@ -272,7 +280,6 @@
       const button = document.createElement("button");
       button.className = "entry";
       button.type = "button";
-      button.setAttribute("role", "listitem");
 
       const mark = document.createElement("span");
       mark.className = "site-mark";
