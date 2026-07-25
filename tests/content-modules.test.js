@@ -126,11 +126,29 @@ test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", asyn
 
   await runtime.namespace.historyClient.getEntries("forward");
   await runtime.namespace.historyClient.navigate(42, "back");
+  await runtime.namespace.historyClient.navigateOneStep("forward");
 
   assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages)), [
     { type: "GET_TAB_HISTORY", direction: "forward" },
-    { type: "NAVIGATE_HISTORY", entryId: 42, direction: "back" }
+    { type: "NAVIGATE_HISTORY", entryId: 42, direction: "back" },
+    { type: "NAVIGATE_ONE_STEP", direction: "forward" }
   ]);
+});
+
+test("500ms 전에 끝난 가로 제스처는 한 단계 이동한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createWheelEvent(0, -0.6));
+  controller.handleWheel(createWheelEvent(300, -0.6));
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
 });
 
 test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", () => {
@@ -138,17 +156,12 @@ test("가로 제스처가 500ms 이어진 뒤 히스토리 메뉴를 연다", ()
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
 
-  controller.menu = {
-    hideGestureIndicator() {},
-    isBusy: () => false,
-    isEventFromUi: () => false,
-    isOpen: () => false,
-    open(direction) {
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
       openedDirections.push(direction);
       return Promise.resolve(true);
-    },
-    showGestureIndicator() {}
-  };
+    }
+  });
 
   for (const timeStamp of [0, 250, 499]) {
     controller.handleWheel(createWheelEvent(timeStamp));
@@ -188,18 +201,30 @@ test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된
   controller.cancelDismissGesture();
 });
 
-function createWheelEvent(timeStamp) {
+function createWheelEvent(timeStamp, deltaX = -8) {
   return {
     cancelable: true,
     clientY: 400,
     composedPath: () => [],
     ctrlKey: false,
     deltaMode: 0,
-    deltaX: -8,
+    deltaX,
     deltaY: 0,
     isTrusted: true,
     preventDefault() {},
     timeStamp,
     webkitDirectionInvertedFromDevice: true
+  };
+}
+
+function createGestureMenuStub(overrides = {}) {
+  return {
+    hideGestureIndicator() {},
+    isBusy: () => false,
+    isEventFromUi: () => false,
+    isOpen: () => false,
+    open: () => Promise.resolve(true),
+    showGestureIndicator() {},
+    ...overrides
   };
 }

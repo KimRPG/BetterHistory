@@ -23,7 +23,7 @@
       this.gestureTriggered = false;
       this.verticalSelectionUsed = false;
       this.gestureDirection = null;
-      this.gestureTimer = null;
+      this.gestureIdleTimer = null;
       this.releaseTimer = null;
       this.dismissTimer = null;
       this.dismissDistance = 0;
@@ -168,9 +168,9 @@
         direction
       );
 
-      clearTimeout(this.gestureTimer);
-      this.gestureTimer = setTimeout(
-        () => this.resetGesture(),
+      clearTimeout(this.gestureIdleTimer);
+      this.gestureIdleTimer = setTimeout(
+        () => this.finishShortGesture(),
         GESTURE_IDLE_MS
       );
 
@@ -179,12 +179,27 @@
       }
 
       this.gestureTriggered = true;
-      clearTimeout(this.gestureTimer);
-      this.gestureTimer = null;
+      clearTimeout(this.gestureIdleTimer);
+      this.gestureIdleTimer = null;
       this.menu.hideGestureIndicator();
       this.pendingReleaseSelection = false;
       void this.openHistoryMenu(direction);
       this.scheduleGestureRelease();
+    }
+
+    finishShortGesture() {
+      const direction = this.gestureDirection;
+      const shouldNavigate = !this.gestureTriggered && direction !== null;
+      this.endGestureCapture();
+      if (shouldNavigate) void this.navigateOneStep(direction);
+    }
+
+    async navigateOneStep(direction) {
+      try {
+        await namespace.historyClient.navigateOneStep(direction);
+      } catch (error) {
+        console.warn("GestureBackHistory: 한 단계 이동에 실패했습니다.", error);
+      }
     }
 
     getHistoryDirection(deltaX) {
@@ -311,9 +326,9 @@
     }
 
     endGestureCapture({ keepPendingSelection = false } = {}) {
-      clearTimeout(this.gestureTimer);
+      clearTimeout(this.gestureIdleTimer);
       clearTimeout(this.releaseTimer);
-      this.gestureTimer = null;
+      this.gestureIdleTimer = null;
       this.releaseTimer = null;
       this.gestureStartedAt = null;
       this.verticalDistance = 0;

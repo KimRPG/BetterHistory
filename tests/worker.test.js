@@ -37,6 +37,14 @@ function loadWorker(history) {
       async detach(target) {
         calls.push({ method: "detach", target });
       }
+    },
+    tabs: {
+      async goBack(tabId) {
+        calls.push({ method: "goBack", tabId });
+      },
+      async goForward(tabId) {
+        calls.push({ method: "goForward", tabId });
+      }
     }
   };
 
@@ -180,4 +188,38 @@ test("앞으로가기 메시지의 방향을 서비스 워커에 전달한다", 
   assert.equal(response.ok, true);
   assert.equal(response.entries.length, 1);
   assert.equal(response.entries[0].id, 40);
+});
+
+test("짧은 제스처 방향으로 한 단계 이동한다", async () => {
+  const runtime = loadWorker(sampleHistory);
+  const listener = runtime.getMessageListener();
+  const responses = [];
+
+  listener(
+    { type: "NAVIGATE_ONE_STEP", direction: "back" },
+    { id: "test-extension-id", tab: { id: 7 } },
+    (value) => responses.push(value)
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  listener(
+    { type: "NAVIGATE_ONE_STEP", direction: "forward" },
+    { id: "test-extension-id", tab: { id: 7 } },
+    (value) => responses.push(value)
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(
+    runtime.calls.filter(({ method }) =>
+      method === "goBack" || method === "goForward"
+    ),
+    [
+      { method: "goBack", tabId: 7 },
+      { method: "goForward", tabId: 7 }
+    ]
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(responses)),
+    [{ ok: true }, { ok: true }]
+  );
 });

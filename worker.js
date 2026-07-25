@@ -18,6 +18,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "NAVIGATE_ONE_STEP") {
+    const direction = normalizeDirection(message.direction);
+    navigateOneStep(tabId, direction)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse(toErrorResponse(error)));
+    return true;
+  }
+
   if (message?.type === "NAVIGATE_HISTORY") {
     if (!Number.isInteger(message.entryId)) {
       sendResponse({ ok: false, error: "잘못된 히스토리 항목입니다." });
@@ -33,6 +41,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return undefined;
 });
+
+async function navigateOneStep(tabId, direction = "back") {
+  if (direction === "forward") {
+    await chrome.tabs.goForward(tabId);
+    return;
+  }
+
+  await chrome.tabs.goBack(tabId);
+}
 
 async function getTabHistory(tabId, direction = "back") {
   return withDebugger(tabId, async (target) => {

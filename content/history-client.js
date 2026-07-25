@@ -27,6 +27,17 @@
       if (!response?.ok) {
         throw new Error(response?.error || "페이지로 이동하지 못했습니다.");
       }
+    },
+
+    async navigateOneStep(direction) {
+      const response = await chrome.runtime.sendMessage({
+        type: "NAVIGATE_ONE_STEP",
+        direction
+      });
+
+      if (!response?.ok) {
+        throw new Error(response?.error || "페이지로 이동하지 못했습니다.");
+      }
     }
   };
 })();
