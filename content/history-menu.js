@@ -137,8 +137,7 @@
     }
 
     close() {
-      this.cancelDismissPreview({ restoreHelp: false });
-      this.panel?.classList.remove("open", "forward", "dismissing");
+      this.panel?.classList.remove("open", "forward");
       this.entries = [];
       this.selectedIndex = -1;
       this.selectionOffset = 0;
@@ -183,27 +182,6 @@
         return false;
       } finally {
         this.busy = false;
-      }
-    }
-
-    setDismissPreview(distance, threshold, armed) {
-      if (!this.panel) return;
-
-      const progress = Math.min(1, distance / threshold);
-      this.panel.classList.add("dismissing");
-      this.panel.style.setProperty("--dismiss-x", `${distance}px`);
-      this.panel.style.opacity = String(1 - progress * 0.35);
-      this.gestureHelp.textContent = armed
-        ? "손을 떼면 닫기"
-        : "오른쪽으로 조금 더 밀어 닫기";
-    }
-
-    cancelDismissPreview({ restoreHelp = true } = {}) {
-      this.panel?.classList.remove("dismissing");
-      this.panel?.style.removeProperty("--dismiss-x");
-      this.panel?.style.removeProperty("opacity");
-      if (restoreHelp && this.gestureHelp && this.isOpen()) {
-        this.gestureHelp.textContent = DEFAULT_GESTURE_HELP;
       }
     }
 

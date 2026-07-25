@@ -10,6 +10,7 @@ const contentFiles = [
   "menu-styles.js",
   "history-client.js",
   "history-menu.js",
+  "gesture-analyzer.js",
   "gesture-controller.js",
   "index.js"
 ];
@@ -99,6 +100,7 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
   assert.equal(typeof runtime.namespace.MENU_STYLES, "string");
   assert.equal(typeof runtime.namespace.historyClient.getEntries, "function");
   assert.equal(typeof runtime.namespace.HistoryMenu, "function");
+  assert.equal(typeof runtime.namespace.GestureAnalyzer, "function");
   assert.equal(typeof runtime.namespace.GestureController, "function");
   assert.deepEqual(
     runtime.listeners.map(({ type }) => type),
@@ -135,7 +137,40 @@ test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", asyn
   ]);
 });
 
-test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", () => {
+test("짧은 가로 제스처는 한 단계 이동한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createWheelEvent(0, -16));
+  controller.handleWheel(createWheelEvent(80, -12));
+  controller.commitQuickNavigation();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(runtime.messages)).filter(
+      ({ type }) => type === "NAVIGATE_ONE_STEP"
+    ),
+    [{ type: "NAVIGATE_ONE_STEP", direction: "back" }]
+  );
+  controller.resetGesture();
+});
+
+test("아주 작은 가로 흔들림은 페이지를 이동하지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createWheelEvent(0, -2));
+
+  assert.equal(controller.commitQuickNavigation(), false);
+  assert.equal(
+    runtime.messages.some(({ type }) => type === "NAVIGATE_ONE_STEP"),
+    false
+  );
+});
+
+test("천천히 500ms 동안 유지한 제스처는 히스토리 메뉴를 연다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -146,19 +181,22 @@ test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", ()
       return Promise.resolve(true);
     }
   });
-  controller.handleWheel(createWheelEvent(0, -0.6));
-  controller.handleWheel(createWheelEvent(300, -0.6));
-  controller.finishTimedGesture();
 
+  for (const timeStamp of [0, 100, 200, 300, 400, 500]) {
+    controller.handleWheel(createWheelEvent(timeStamp, -5));
+  }
+  const opened = controller.tryOpenHeldMenu();
+
+  assert.equal(opened, true);
   assert.deepEqual(openedDirections, ["back"]);
   assert.equal(
     runtime.messages.some(({ type }) => type === "NAVIGATE_ONE_STEP"),
     false
   );
-  controller.endGestureCapture();
+  controller.resetGesture();
 });
 
-test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
+test("빠르게 시작해 감소하는 관성 입력은 긴 제스처로 보지 않는다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -170,14 +208,21 @@ test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () 
     }
   });
 
-  for (const timeStamp of [0, 250, 499]) {
-    controller.handleWheel(createWheelEvent(timeStamp));
+  const momentum = [
+    [0, -18],
+    [50, -16],
+    [100, -13],
+    [180, -10],
+    [280, -8],
+    [390, -6],
+    [500, -4]
+  ];
+  for (const [timeStamp, deltaX] of momentum) {
+    controller.handleWheel(createWheelEvent(timeStamp, deltaX));
   }
-  assert.deepEqual(openedDirections, []);
 
-  controller.handleWheel(createWheelEvent(500));
-  controller.handleWheel(createWheelEvent(650));
-  controller.finishTimedGesture();
+  assert.equal(controller.tryOpenHeldMenu(), false);
+  controller.commitQuickNavigation();
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(openedDirections, []);
@@ -187,37 +232,48 @@ test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () 
     ),
     [{ type: "NAVIGATE_ONE_STEP", direction: "back" }]
   );
+  controller.resetGesture();
 });
 
-test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된다", () => {
+test("열린 메뉴에서 세로로 움직이면 선택 항목을 이동한다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
-  const previews = [];
+  const moves = [];
 
-  controller.menu = {
-    cancelDismissPreview() {},
-    setDismissPreview(distance, threshold, armed) {
-      previews.push({ distance, threshold, armed });
+  controller.menu = createGestureMenuStub({
+    moveSelection(step) {
+      moves.push(step);
     }
-  };
+  });
+  controller.phase = "menu";
+  controller.handleWheel(createWheelEvent(600, 0, -40));
 
-  controller.updateDismissGesture(
-    {
-      cancelable: true,
-      preventDefault() {},
-      webkitDirectionInvertedFromDevice: true
-    },
-    -30
-  );
-
-  assert.equal(controller.dismissArmed, true);
-  assert.deepEqual(previews, [
-    { distance: 30, threshold: 28, armed: true }
-  ]);
-  controller.cancelDismissGesture();
+  assert.deepEqual(moves, [1]);
+  controller.resetGesture();
 });
 
-function createWheelEvent(timeStamp, deltaX = -8) {
+test("메뉴에서 선택한 뒤 손을 떼면 해당 기록으로 이동한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const navigatedEntries = [];
+  const selected = { entry: { id: 20 }, button: {} };
+
+  controller.menu = createGestureMenuStub({
+    getSelected: () => selected,
+    navigate(entry) {
+      navigatedEntries.push(entry.id);
+      return Promise.resolve(true);
+    }
+  });
+  controller.phase = "menu";
+  controller.handleWheel(createWheelEvent(600, 0, -40));
+  controller.finishMenuGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(navigatedEntries, [20]);
+});
+
+function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {
   return {
     cancelable: true,
     clientY: 400,
@@ -225,7 +281,7 @@ function createWheelEvent(timeStamp, deltaX = -8) {
     ctrlKey: false,
     deltaMode: 0,
     deltaX,
-    deltaY: 0,
+    deltaY,
     isTrusted: true,
     preventDefault() {},
     timeStamp,
@@ -234,13 +290,36 @@ function createWheelEvent(timeStamp, deltaX = -8) {
 }
 
 function createGestureMenuStub(overrides = {}) {
-  return {
+  let open = false;
+  const customOpen = overrides.open;
+  const customClose = overrides.close;
+  const menu = {
+    close() {
+      open = false;
+      customClose?.();
+    },
+    getSelected: () => null,
+    handleKeydown() {},
     hideGestureIndicator() {},
     isBusy: () => false,
     isEventFromUi: () => false,
-    isOpen: () => false,
-    open: () => Promise.resolve(true),
+    isOpen: () => open,
+    moveSelection() {},
+    navigate: () => Promise.resolve(true),
+    open(direction) {
+      open = true;
+      return customOpen?.(direction) ?? Promise.resolve(true);
+    },
     showGestureIndicator() {},
     ...overrides
   };
+  menu.open = (direction) => {
+    open = true;
+    return customOpen?.(direction) ?? Promise.resolve(true);
+  };
+  menu.close = () => {
+    open = false;
+    customClose?.();
+  };
+  return menu;
 }
