@@ -6,6 +6,7 @@
     enabled: true,
     gestureDirection: "right"
   });
+  const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_HOLD_MS = 500;
   const GESTURE_IDLE_MS = 190;
   const GESTURE_RELEASE_MS = 460;
@@ -29,6 +30,7 @@
       this.dismissGestureActive = false;
       this.dismissArmed = false;
       this.pendingReleaseSelection = false;
+      this.waitingForDocumentRoot = false;
 
       this.menu = new namespace.HistoryMenu(namespace.historyClient, {
         onCloseRequest: () => this.closeMenu(),
@@ -41,6 +43,7 @@
       this.handleKeydown = this.handleKeydown.bind(this);
       this.handleOutsidePointer = this.handleOutsidePointer.bind(this);
       this.handleStorageChange = this.handleStorageChange.bind(this);
+      this.handleDocumentReady = this.handleDocumentReady.bind(this);
     }
 
     start() {
@@ -61,6 +64,8 @@
       } catch {
         this.settings = { ...DEFAULT_SETTINGS };
       }
+
+      this.updateNativeNavigationBlock();
     }
 
     handleStorageChange(changes, areaName) {
@@ -71,7 +76,30 @@
       }
 
       this.settings = sanitizeSettings(this.settings);
+      this.updateNativeNavigationBlock();
       if (!this.settings.enabled) this.closeMenu();
+    }
+
+    updateNativeNavigationBlock() {
+      const root = document.documentElement;
+      if (!root) {
+        if (!this.waitingForDocumentRoot) {
+          this.waitingForDocumentRoot = true;
+          document.addEventListener(
+            "DOMContentLoaded",
+            this.handleDocumentReady,
+            { once: true }
+          );
+        }
+        return;
+      }
+
+      root.toggleAttribute(NAVIGATION_BLOCK_ATTRIBUTE, this.settings.enabled);
+    }
+
+    handleDocumentReady() {
+      this.waitingForDocumentRoot = false;
+      this.updateNativeNavigationBlock();
     }
 
     handleWheel(event) {

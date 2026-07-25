@@ -17,6 +17,7 @@ const contentFiles = [
 function loadContentModules() {
   const listeners = [];
   const messages = [];
+  const rootAttributes = new Set();
   const chrome = {
     runtime: {
       async sendMessage(message) {
@@ -46,11 +47,19 @@ function loadContentModules() {
       listeners.push({ type, listener });
     }
   };
+  const document = {
+    documentElement: {
+      toggleAttribute(name, force) {
+        if (force) rootAttributes.add(name);
+        else rootAttributes.delete(name);
+      }
+    }
+  };
   const context = vm.createContext({
     chrome,
     clearTimeout,
     console,
-    document: {},
+    document,
     Element: class Element {},
     setTimeout,
     WheelEvent: {
@@ -71,7 +80,8 @@ function loadContentModules() {
   return {
     listeners,
     messages,
-    namespace: context.GestureBackHistory
+    namespace: context.GestureBackHistory,
+    rootAttributes
   };
 }
 
@@ -85,6 +95,7 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
   );
 
   assert.deepEqual(declaredFiles, contentFiles);
+  assert.deepEqual(manifest.content_scripts[0].css, ["content/page-styles.css"]);
   assert.equal(typeof runtime.namespace.MENU_STYLES, "string");
   assert.equal(typeof runtime.namespace.historyClient.getEntries, "function");
   assert.equal(typeof runtime.namespace.HistoryMenu, "function");
@@ -93,6 +104,21 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
     runtime.listeners.map(({ type }) => type),
     ["storage", "wheel", "keydown", "pointerdown"]
   );
+});
+
+test("활성 상태에 따라 Chrome 기본 가로 탐색을 차단한다", async () => {
+  const runtime = loadContentModules();
+  const attribute = "data-gesture-back-history-navigation";
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(runtime.rootAttributes.has(attribute), true);
+
+  const storageListener = runtime.listeners.find(({ type }) => type === "storage");
+  storageListener.listener({ enabled: { newValue: false } }, "sync");
+  assert.equal(runtime.rootAttributes.has(attribute), false);
+
+  storageListener.listener({ enabled: { newValue: true } }, "sync");
+  assert.equal(runtime.rootAttributes.has(attribute), true);
 });
 
 test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", async () => {

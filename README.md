@@ -24,6 +24,7 @@ macOS의 스크롤 방향 설정에 따라 뒤로가기와 앞으로가기가 �
 ## 구현 방식
 
 - 콘텐츠 스크립트가 취소 가능한 가로 `wheel` 이벤트로 뒤로가기와 앞으로가기를 구분하고, 해당 입력이 0.5초 동안 이어지면 메뉴를 엽니다.
+- 확장 기능이 켜진 동안에는 페이지 루트의 가로 오버스크롤 탐색을 차단해 Chrome 기본 제스처와의 충돌을 방지합니다.
 - 가로로 당긴 직후 이어지는 세로 `wheel` 값을 누적해 선택 막대를 움직이고, 입력이 끝난 시점을 손을 뗀 것으로 판정합니다.
 - 가로 스크롤 요소가 실제로 스크롤될 수 있을 때는 제스처를 가로채지 않습니다.
 - 메뉴 UI는 닫힌 Shadow DOM 안에 만들어 웹사이트의 CSS/JavaScript와 충돌을 줄였습니다.
@@ -50,6 +51,7 @@ ChromeExtension/
 ├── worker.js       # 탭 히스토리 조회 및 이동
 ├── content/
 │   ├── menu-styles.js       # Shadow DOM 메뉴 스타일
+│   ├── page-styles.css      # Chrome 기본 가로 탐색 차단 스타일
 │   ├── history-client.js    # 서비스 워커 메시지 통신
 │   ├── history-menu.js      # 페이지 내 히스토리 메뉴 UI
 │   ├── gesture-controller.js # 스와이프 상태와 제스처 처리
