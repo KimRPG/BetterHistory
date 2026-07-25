@@ -44,12 +44,7 @@
           <strong>길게 당기기 기준</strong>
           <span>0.1·0.2초는 짧게 한 단계 이동, 길게 기록 메뉴로 시험합니다.</span>
         </label>
-        <select id="hold-duration">
-          <option value="100">0.1초 · 반대 동작 테스트</option>
-          <option value="200">0.2초 · 반대 동작 테스트</option>
-          <option value="300">0.3초</option>
-          <option value="500">0.5초</option>
-        </select>
+        <select id="hold-duration"></select>
       </section>
 
       <p class="notice">
@@ -57,6 +52,7 @@
       </p>
       <p id="status" class="status" role="status" aria-live="polite"></p>
     </main>
+    <script src="shared/settings.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

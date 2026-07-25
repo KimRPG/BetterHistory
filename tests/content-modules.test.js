@@ -7,11 +7,12 @@ const test = require("node:test");
 const vm = require("node:vm");
 
 const contentFiles = [
-  "menu-styles.js",
-  "history-client.js",
-  "history-menu.js",
-  "gesture-controller.js",
-  "index.js"
+  "shared/settings.js",
+  "content/menu-styles.js",
+  "content/history-client.js",
+  "content/history-menu.js",
+  "content/gesture-controller.js",
+  "content/index.js"
 ];
 
 function loadContentModules() {
@@ -98,10 +99,7 @@ function loadContentModules() {
   });
 
   for (const file of contentFiles) {
-    const source = fs.readFileSync(
-      path.join(__dirname, "..", "content", file),
-      "utf8"
-    );
+    const source = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
     new vm.Script(source, { filename: file }).runInContext(context);
   }
 
@@ -121,11 +119,7 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
   const manifest = JSON.parse(
     fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8")
   );
-  const declaredFiles = manifest.content_scripts[0].js.map((file) =>
-    path.basename(file)
-  );
-
-  assert.deepEqual(declaredFiles, contentFiles);
+  assert.deepEqual(manifest.content_scripts[0].js, contentFiles);
   assert.deepEqual(manifest.content_scripts[0].css, ["content/page-styles.css"]);
   assert.equal(manifest.permissions.includes("favicon"), true);
   assert.deepEqual(manifest.web_accessible_resources, [
@@ -143,6 +137,39 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
     runtime.listeners.map(({ type }) => type),
     ["storage", "wheel", "keydown", "pointerdown"]
   );
+});
+
+test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다", () => {
+  const runtime = loadContentModules();
+  const { DEFAULT_SETTINGS, HOLD_DURATION_CHOICES, sanitizeSettings } =
+    runtime.namespace;
+  const popupHtml = fs.readFileSync(
+    path.join(__dirname, "..", "popup.html"),
+    "utf8"
+  );
+
+  assert.deepEqual(
+    [...HOLD_DURATION_CHOICES].map(({ value }) => value),
+    [100, 200, 300, 500]
+  );
+  assert.equal(popupHtml.includes('src="shared/settings.js"'), true);
+  // 기준 시간 목록은 공유 정의에서만 만들고 마크업에 복제하지 않습니다.
+  assert.equal(popupHtml.includes('<select id="hold-duration"></select>'), true);
+  for (const { value } of HOLD_DURATION_CHOICES) {
+    assert.equal(popupHtml.includes(`value="${value}"`), false);
+  }
+  assert.deepEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(sanitizeSettings({
+      enabled: false,
+      gestureDirection: "left",
+      holdDurationMs: "300"
+    }))),
+    { enabled: false, gestureDirection: "left", holdDurationMs: 300 }
+  );
+  assert.equal(sanitizeSettings({ holdDurationMs: 999 }).holdDurationMs, 500);
+  assert.equal(runtime.namespace.usesReversedGestureOrder(100), true);
+  assert.equal(runtime.namespace.usesReversedGestureOrder(500), false);
 });
 
 test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {

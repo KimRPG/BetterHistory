@@ -2,13 +2,8 @@
   "use strict";
 
   const namespace = globalThis.GestureBackHistory ??= {};
-  const DEFAULT_SETTINGS = Object.freeze({
-    enabled: true,
-    gestureDirection: "right",
-    holdDurationMs: 500
-  });
-  const HOLD_DURATION_OPTIONS = Object.freeze([100, 200, 300, 500]);
-  const ORIGINAL_GESTURE_ORDER_OPTIONS = Object.freeze([100, 200]);
+  const { DEFAULT_SETTINGS, sanitizeSettings } = namespace;
+  const isReversedHoldDuration = namespace.usesReversedGestureOrder;
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const PAGE_MOTION_ATTRIBUTE = "data-gesture-back-history-page-motion";
   const PAGE_SHIFT_PROPERTY = "--gesture-back-history-page-shift";
@@ -175,7 +170,7 @@
         return;
       }
 
-      if (this.usesOriginalGestureOrder()) {
+      if (this.usesReversedGestureOrder()) {
         this.endGestureCapture();
         void this.openHistoryMenu(direction);
         return;
@@ -194,7 +189,7 @@
     finishShortGesture() {
       const direction = this.gestureDirection;
       const shouldHandleGesture = !this.gestureTriggered && direction !== null;
-      const shouldNavigate = shouldHandleGesture && this.usesOriginalGestureOrder();
+      const shouldNavigate = shouldHandleGesture && this.usesReversedGestureOrder();
       this.endGestureCapture();
       if (!shouldHandleGesture) return;
 
@@ -205,8 +200,8 @@
       }
     }
 
-    usesOriginalGestureOrder() {
-      return ORIGINAL_GESTURE_ORDER_OPTIONS.includes(this.settings.holdDurationMs);
+    usesReversedGestureOrder() {
+      return isReversedHoldDuration(this.settings.holdDurationMs);
     }
 
     async navigateOneStep(direction) {
@@ -366,18 +361,6 @@
       this.releasePageMotion();
       this.menu.hideGestureIndicator();
     }
-  }
-
-  function sanitizeSettings(candidate) {
-    const holdDurationMs = Number(candidate?.holdDurationMs);
-
-    return {
-      enabled: candidate?.enabled !== false,
-      gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
-      holdDurationMs: HOLD_DURATION_OPTIONS.includes(holdDurationMs)
-        ? holdDurationMs
-        : DEFAULT_SETTINGS.holdDurationMs
-    };
   }
 
   function getFingerDelta(event, wheelDelta) {

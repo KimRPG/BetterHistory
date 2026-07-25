@@ -41,6 +41,7 @@
         "content/page-styles.css"
       ],
       "js": [
+        "shared/settings.js",
         "content/menu-styles.js",
         "content/history-client.js",
         "content/history-menu.js",
