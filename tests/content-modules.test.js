@@ -266,6 +266,46 @@ test("설정한 기준 시간이 지나야 한 단계 이동한다", async () =>
   controller.clearPageMotion();
 });
 
+test("0.1초 설정에서는 짧은 제스처로 한 단계 이동한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.settings.holdDurationMs = 100;
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createWheelEvent(0, -0.6));
+  controller.handleWheel(createWheelEvent(90, -0.6));
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
+  controller.clearPageMotion();
+});
+
+test("0.1초 설정에서는 길게 당기면 히스토리 메뉴를 연다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.settings.holdDurationMs = 100;
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+
+  controller.handleWheel(createWheelEvent(0));
+  controller.handleWheel(createWheelEvent(99));
+  assert.deepEqual(openedDirections, []);
+
+  controller.handleWheel(createWheelEvent(100));
+  assert.deepEqual(openedDirections, ["back"]);
+  controller.clearPageMotion();
+});
+
 test("열린 메뉴에서 세로 제스처로 항목을 선택하고 손을 떼면 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();

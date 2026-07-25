@@ -174,6 +174,12 @@
         return;
       }
 
+      if (this.usesOriginalGestureOrder()) {
+        this.endGestureCapture();
+        void this.openHistoryMenu(direction);
+        return;
+      }
+
       this.gestureTriggered = true;
       clearTimeout(this.gestureIdleTimer);
       this.gestureIdleTimer = setTimeout(
@@ -186,9 +192,20 @@
 
     finishShortGesture() {
       const direction = this.gestureDirection;
-      const shouldOpenMenu = !this.gestureTriggered && direction !== null;
+      const shouldHandleGesture = !this.gestureTriggered && direction !== null;
+      const shouldNavigate = shouldHandleGesture && this.usesOriginalGestureOrder();
       this.endGestureCapture();
-      if (shouldOpenMenu) void this.openHistoryMenu(direction);
+      if (!shouldHandleGesture) return;
+
+      if (shouldNavigate) {
+        void this.navigateOneStep(direction);
+      } else {
+        void this.openHistoryMenu(direction);
+      }
+    }
+
+    usesOriginalGestureOrder() {
+      return this.settings.holdDurationMs === 100;
     }
 
     async navigateOneStep(direction) {
