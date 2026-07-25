@@ -92,15 +92,17 @@ async function getTabHistory(tabId, direction = "back") {
       ? history.entries.slice(currentIndex + 1)
       : history.entries.slice(0, currentIndex).reverse();
 
+    // distance는 실제 히스토리 거리라서 걸러내기 전 순서로 계산하고,
+    // 개수 제한은 걸러낸 뒤에 적용해야 20개보다 적게 남지 않습니다.
     return entries
-      .slice(0, MAX_HISTORY_ENTRIES)
       .map((entry, index) => ({
         id: entry.id,
         title: cleanText(entry.title) || cleanText(entry.url) || "제목 없는 페이지",
         url: cleanText(entry.url),
         distance: index + 1
       }))
-      .filter((entry) => Number.isInteger(entry.id) && entry.url);
+      .filter((entry) => Number.isInteger(entry.id) && entry.url)
+      .slice(0, MAX_HISTORY_ENTRIES);
   });
 }
 

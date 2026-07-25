@@ -368,3 +368,16 @@ test("작업 중 디버거가 끊기면 안내 문구로 알린다", async () =>
   // 이미 끊긴 연결에 detach를 다시 호출하지 않습니다.
   assert.equal(runtime.calls.some(({ method }) => method === "detach"), false);
 });
+
+test("한 항목이 걸러져도 개수 제한은 남은 항목 기준으로 적용한다", async () => {
+  const entries = Array.from({ length: 26 }, (_, index) => ({
+    id: index + 1,
+    title: `페이지 ${index + 1}`,
+    url: index === 3 ? "" : `https://example.com/${index + 1}`
+  }));
+  const runtime = loadWorker({ currentIndex: 25, entries });
+
+  const history = await runtime.context.getTabHistory(7);
+  assert.equal(history.length, 20);
+  assert.equal(history.some((entry) => entry.url === ""), false);
+});
