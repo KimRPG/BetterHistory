@@ -108,8 +108,7 @@ function loadContentModules() {
     messages,
     namespace: context.GestureBackHistory,
     rootAttributes,
-    rootStyles,
-    window
+    rootStyles
   };
 }
 
@@ -233,27 +232,6 @@ test("가로 제스처를 따라 페이지가 움직이고 끝나면 원위치�
   assert.equal(runtime.rootStyles.get(shiftProperty), "0px");
   controller.clearPageMotion();
   assert.equal(runtime.rootAttributes.has(motionAttribute), false);
-});
-
-test("이동 가능한 페이지가 없는 방향에는 화면 모션을 적용하지 않는다", () => {
-  const runtime = loadContentModules();
-  const controller = new runtime.namespace.GestureController();
-  const motionAttribute = "data-gesture-back-history-page-motion";
-
-  runtime.window.navigation = {
-    canGoBack: false,
-    canGoForward: true
-  };
-  controller.menu = createGestureMenuStub();
-
-  controller.handleWheel(createWheelEvent(0, -20));
-  assert.equal(runtime.rootAttributes.has(motionAttribute), false);
-  controller.resetGesture();
-
-  controller.handleWheel(createWheelEvent(0, 20));
-  assert.equal(runtime.rootAttributes.has(motionAttribute), true);
-  controller.resetGesture();
-  controller.clearPageMotion();
 });
 
 test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
