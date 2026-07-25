@@ -85,6 +85,9 @@ function loadContentModules() {
     console,
     document,
     Element: class Element {},
+    getComputedStyle(element) {
+      return element.computedStyle ?? { overflowX: "visible" };
+    },
     setTimeout,
     URL,
     WheelEvent: {
@@ -104,6 +107,7 @@ function loadContentModules() {
 
   return {
     chrome,
+    Element: context.Element,
     listeners,
     messages,
     namespace: context.GestureBackHistory,
@@ -232,6 +236,33 @@ test("가로 제스처를 따라 페이지가 움직이고 끝나면 원위치�
   assert.equal(runtime.rootStyles.get(shiftProperty), "0px");
   controller.clearPageMotion();
   assert.equal(runtime.rootAttributes.has(motionAttribute), false);
+});
+
+test("가로 스크롤 영역에서는 끝에 도달해도 기록 제스처를 시작하지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const horizontalScroller = new runtime.Element();
+  let prevented = false;
+
+  horizontalScroller.clientWidth = 200;
+  horizontalScroller.scrollWidth = 600;
+  horizontalScroller.scrollLeft = 400;
+  horizontalScroller.computedStyle = { overflowX: "auto" };
+  controller.menu = createGestureMenuStub();
+
+  const event = createWheelEvent(0, -20);
+  event.composedPath = () => [horizontalScroller];
+  event.preventDefault = () => {
+    prevented = true;
+  };
+  controller.handleWheel(event);
+
+  assert.equal(prevented, false);
+  assert.equal(runtime.messages.length, 0);
+  assert.equal(
+    runtime.rootAttributes.has("data-gesture-back-history-page-motion"),
+    false
+  );
 });
 
 test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {

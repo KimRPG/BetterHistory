@@ -134,7 +134,7 @@
 
       if (!horizontal || absoluteX < 0.5) return;
 
-      if (canScrollHorizontally(event.composedPath(), deltaX)) return;
+      if (isHorizontalScrollArea(event.composedPath())) return;
       if (!event.cancelable) return;
 
       event.preventDefault();
@@ -394,27 +394,18 @@
     return delta;
   }
 
-  function canScrollHorizontally(path, deltaX) {
+  function isHorizontalScrollArea(path) {
     for (const node of path) {
       if (!(node instanceof Element) || node === document.documentElement) continue;
 
       const style = getComputedStyle(node);
       if (!/(auto|scroll|overlay)/.test(style.overflowX)) continue;
 
-      const maxScroll = node.scrollWidth - node.clientWidth;
-      if (maxScroll <= 2) continue;
-      if (deltaX < 0 && node.scrollLeft > 1) return true;
-      if (deltaX > 0 && node.scrollLeft < maxScroll - 1) return true;
+      if (node.scrollWidth - node.clientWidth > 2) return true;
     }
 
     const root = document.scrollingElement;
-    if (root && root.scrollWidth - root.clientWidth > 2) {
-      const maxScroll = root.scrollWidth - root.clientWidth;
-      if (deltaX < 0 && root.scrollLeft > 1) return true;
-      if (deltaX > 0 && root.scrollLeft < maxScroll - 1) return true;
-    }
-
-    return false;
+    return Boolean(root && root.scrollWidth - root.clientWidth > 2);
   }
 
   namespace.GestureController = GestureController;
