@@ -296,32 +296,24 @@ test("열린 메뉴에서 세로 제스처로 항목을 선택하고 손을 떼�
   assert.equal(navigationCount, 1);
 });
 
-test("오른쪽 밀기가 임계값을 넘으면 손 떼기 닫기 상태가 된다", () => {
+test("열린 메뉴에서는 가로 제스처를 무시한다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
-  const previews = [];
+  let prevented = false;
 
-  controller.menu = {
-    cancelDismissPreview() {},
-    setDismissPreview(distance, threshold, armed) {
-      previews.push({ distance, threshold, armed });
-    }
+  controller.menu = createGestureMenuStub({ isOpen: () => true });
+  const event = createWheelEvent(0, -30);
+  event.preventDefault = () => {
+    prevented = true;
   };
+  controller.handleWheel(event);
 
-  controller.updateDismissGesture(
-    {
-      cancelable: true,
-      preventDefault() {},
-      webkitDirectionInvertedFromDevice: true
-    },
-    -30
+  assert.equal(prevented, true);
+  assert.equal(runtime.messages.length, 0);
+  assert.equal(
+    runtime.rootAttributes.has("data-gesture-back-history-page-motion"),
+    false
   );
-
-  assert.equal(controller.dismissArmed, true);
-  assert.deepEqual(previews, [
-    { distance: 30, threshold: 28, armed: true }
-  ]);
-  controller.cancelDismissGesture();
 });
 
 function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {

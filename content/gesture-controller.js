@@ -19,8 +19,6 @@
   const PAGE_MOTION_MAX_DISTANCE = 72;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
-  const DISMISS_GESTURE_THRESHOLD = 28;
-  const DISMISS_GESTURE_MAX_DISTANCE = 72;
 
   class GestureController {
     constructor() {
@@ -35,10 +33,6 @@
       this.menuSelectionUsed = false;
       this.menuSelectionTimer = null;
       this.pendingMenuSelection = false;
-      this.dismissTimer = null;
-      this.dismissDistance = 0;
-      this.dismissGestureActive = false;
-      this.dismissArmed = false;
       this.waitingForDocumentRoot = false;
 
       this.menu = new namespace.HistoryMenu(namespace.historyClient, {
@@ -121,11 +115,6 @@
       const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
       const eventFromExtensionUi = this.menu.isEventFromUi(event);
 
-      if (this.dismissGestureActive && this.menu.isOpen()) {
-        this.updateDismissGesture(event, deltaX);
-        return;
-      }
-
       if (
         this.menu.isOpen() &&
         absoluteY > 0.5 &&
@@ -135,19 +124,14 @@
         return;
       }
 
-      if (
-        eventFromExtensionUi &&
-        (!this.menu.isOpen() || !horizontal || getFingerDelta(event, deltaX) <= 0)
-      ) {
+      if (this.menu.isOpen()) {
+        if (horizontal && event.cancelable) event.preventDefault();
         return;
       }
+
+      if (eventFromExtensionUi) return;
 
       if (!horizontal || absoluteX < 0.5) return;
-
-      if (this.menu.isOpen() && getFingerDelta(event, deltaX) > 0) {
-        this.updateDismissGesture(event, deltaX);
-        return;
-      }
 
       if (canScrollHorizontally(event.composedPath(), deltaX)) return;
       if (!event.cancelable) return;
@@ -164,10 +148,6 @@
       }
 
       const direction = this.getHistoryDirection(deltaX);
-      if (this.menu.isOpen()) {
-        if (this.menu.isBusy()) return;
-        this.closeMenu();
-      }
       if (this.gestureDirection && this.gestureDirection !== direction) {
         this.resetGesture();
       }
@@ -317,50 +297,6 @@
       this.pendingMenuSelection = false;
     }
 
-    updateDismissGesture(event, deltaX) {
-      if (!event.cancelable) return;
-      event.preventDefault();
-
-      this.dismissGestureActive = true;
-      this.dismissDistance = Math.min(
-        DISMISS_GESTURE_MAX_DISTANCE,
-        Math.max(0, this.dismissDistance + getFingerDelta(event, deltaX))
-      );
-      this.dismissArmed = this.dismissDistance >= DISMISS_GESTURE_THRESHOLD;
-      this.menu.setDismissPreview(
-        this.dismissDistance,
-        DISMISS_GESTURE_THRESHOLD,
-        this.dismissArmed
-      );
-
-      clearTimeout(this.dismissTimer);
-      this.dismissTimer = setTimeout(
-        () => this.finishDismissGesture(),
-        GESTURE_RELEASE_MS
-      );
-    }
-
-    finishDismissGesture() {
-      clearTimeout(this.dismissTimer);
-      this.dismissTimer = null;
-
-      if (this.dismissArmed) {
-        this.closeMenu();
-        return;
-      }
-
-      this.cancelDismissGesture();
-    }
-
-    cancelDismissGesture({ restoreHelp = true } = {}) {
-      clearTimeout(this.dismissTimer);
-      this.dismissTimer = null;
-      this.dismissDistance = 0;
-      this.dismissGestureActive = false;
-      this.dismissArmed = false;
-      this.menu.cancelDismissPreview({ restoreHelp });
-    }
-
     async openHistoryMenu(direction) {
       const opened = await this.menu.open(direction);
       if (opened && this.pendingMenuSelection) {
@@ -395,7 +331,6 @@
 
     closeMenu() {
       this.resetMenuSelection();
-      this.cancelDismissGesture({ restoreHelp: false });
       this.menu.close();
       this.endGestureCapture();
     }

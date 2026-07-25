@@ -48,10 +48,6 @@
       width: min(390px, calc(100vw - 36px));
     }
     .panel.open { display: block; }
-    .panel.dismissing {
-      transform: translate(var(--dismiss-x, 0), -50%);
-      transition: transform 70ms linear, opacity 70ms linear;
-    }
     .panel.forward {
       animation-name: enter-forward;
       left: auto;
