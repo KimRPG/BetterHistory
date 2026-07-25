@@ -117,7 +117,7 @@ test("Manifest 순서대로 콘텐츠 모듈을 조립하고 이벤트를 등록
     {
       resources: ["_favicon/*"],
       matches: ["<all_urls>"],
-      extension_ids: ["*"]
+      use_dynamic_url: true
     }
   ]);
   assert.equal(typeof runtime.namespace.MENU_STYLES, "string");

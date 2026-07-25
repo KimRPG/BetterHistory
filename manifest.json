@@ -39,9 +39,7 @@
       "matches": [
         "<all_urls>"
       ],
-      "extension_ids": [
-        "*"
-      ]
+      "use_dynamic_url": true
     }
   ],
   "content_scripts": [
