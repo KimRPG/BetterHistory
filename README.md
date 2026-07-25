@@ -48,16 +48,24 @@ macOS의 스크롤 방향 설정에 따라 뒤로가기와 앞으로가기가 �
 ChromeExtension/
 ├── manifest.json   # Manifest V3 설정과 권한
 ├── worker.js       # 탭 히스토리 조회 및 이동
-├── content.js      # 스와이프 감지와 페이지 내 메뉴
+├── content/
+│   ├── menu-styles.js       # Shadow DOM 메뉴 스타일
+│   ├── history-client.js    # 서비스 워커 메시지 통신
+│   ├── history-menu.js      # 페이지 내 히스토리 메뉴 UI
+│   ├── gesture-controller.js # 스와이프 상태와 제스처 처리
+│   └── index.js             # 콘텐츠 기능 시작점
 ├── popup.html      # 확장 아이콘 설정 화면
 ├── popup.css
 ├── popup.js
 ├── tests/
-│   └── worker.test.js # 히스토리 처리 단위 테스트
+│   ├── worker.test.js          # 히스토리 처리 단위 테스트
+│   └── content-modules.test.js # 콘텐츠 모듈 조립 및 제스처 테스트
 └── README.md
 ```
 
-서비스 워커 테스트는 프로젝트 폴더에서 아래처럼 실행할 수 있습니다.
+콘텐츠 스크립트는 Manifest에 선언된 순서로 같은 격리 환경에 로드되며, 별도의 빌드 과정 없이 바로 설치할 수 있습니다.
+
+전체 테스트는 프로젝트 폴더에서 아래처럼 실행할 수 있습니다.
 
 ```bash
 node --test
