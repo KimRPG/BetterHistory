@@ -12,11 +12,22 @@
   // 거의 일정한 비율로 속도가 줄지만 사람 손가락은 그렇게 규칙적이지 않다는 점을
   // 이용합니다. (embla-carousel이 쓰는 wheel-gestures와 같은 방식)
   const EVENTS_PER_SAMPLE = 2;
-  const SAMPLES_TO_CONFIRM = 5;
+  const SAMPLES_TO_CONFIRM = 3;
   const DECAY_MIN = 0.6;
   const DECAY_MAX = 0.96;
+  // 조금이라도 느려지기 시작하면 곧바로 "잦아드는 중"으로 보고, 확정될 때까지
+  // 이동 거리를 보류시킵니다. 확정을 기다리는 사이에 관성이 거리에 섞이면
+  // 짧게 튕긴 제스처가 기준을 넘어 버립니다.
+  const SETTLING_MAX = 0.99;
+  // 표본 두 개를 모으기 전에도 값이 줄기 시작하면 곧바로 보류에 들어갑니다.
+  // 보류는 거리를 버리는 게 아니라 붙잡아 두는 것뿐이라, 일찍 잡아도 손해가 없습니다.
+  const SETTLING_HINT_EVENTS = 1;
   const RESUME_DELTA_RATIO = 2;
   const RESUME_DELTA_MIN = 2;
+
+  const FINGER = "finger";
+  const SETTLING = "settling";
+  const MOMENTUM = "momentum";
 
   class WheelPhaseTracker {
     constructor() {
@@ -25,20 +36,24 @@
 
     reset() {
       this.momentum = false;
+      this.settling = false;
+      this.decayRun = 0;
+      this.fallingRun = 0;
       this.lastMagnitude = 0;
       this.pendingDelta = 0;
       this.pendingTime = 0;
       this.pendingCount = 0;
       this.previousSample = null;
       this.previousVelocity = null;
-      this.decayFactors = [];
     }
 
-    // 이 이벤트가 손가락을 뗀 뒤의 관성이면 true.
+    // "finger"(손가락이 움직이는 중) / "settling"(느려지는 중, 판단 보류) /
+    // "momentum"(손을 뗀 뒤의 관성) 중 하나를 돌려줍니다.
     update(event, delta) {
       if (typeof event.momentum === "boolean") {
         this.momentum = event.momentum;
-        return this.momentum;
+        this.settling = false;
+        return this.momentum ? MOMENTUM : FINGER;
       }
 
       const magnitude = Math.abs(delta);
@@ -49,26 +64,37 @@
       ) {
         this.reset();
       }
+      if (magnitude < this.lastMagnitude) {
+        this.fallingRun += 1;
+        if (this.fallingRun >= SETTLING_HINT_EVENTS) this.settling = true;
+      } else if (magnitude > this.lastMagnitude) {
+        this.fallingRun = 0;
+        this.settling = false;
+      }
       this.lastMagnitude = magnitude;
 
       // 한 번 관성으로 판정하면 이벤트가 끊기거나 손가락이 다시 닿을 때까지
       // 유지합니다. 감쇠 값이 잠깐 흔들려도 판정이 뒤집히지 않게 합니다.
-      if (this.momentum) return true;
+      if (this.momentum) return MOMENTUM;
 
       const sample = this.collectSample(event, delta);
-      if (!sample) return false;
+      const factor = sample === null ? null : this.toDecayFactor(sample);
 
-      const factor = this.toDecayFactor(sample);
-      if (factor === null) return false;
+      if (factor !== null) {
+        const steady = factor === 0 || (factor >= DECAY_MIN && factor <= DECAY_MAX);
+        this.decayRun = steady ? this.decayRun + 1 : 0;
+        this.settling = factor === 0 ||
+          factor <= SETTLING_MAX ||
+          this.fallingRun >= SETTLING_HINT_EVENTS;
 
-      this.decayFactors.push(factor);
-      if (this.decayFactors.length > SAMPLES_TO_CONFIRM) this.decayFactors.shift();
-      if (this.decayFactors.length < SAMPLES_TO_CONFIRM) return false;
+        if (this.decayRun >= SAMPLES_TO_CONFIRM) {
+          this.momentum = true;
+          this.settling = false;
+          return MOMENTUM;
+        }
+      }
 
-      this.momentum = this.decayFactors.every(
-        (value) => value === 0 || (value >= DECAY_MIN && value <= DECAY_MAX)
-      );
-      return this.momentum;
+      return this.settling ? SETTLING : FINGER;
     }
 
     // 이벤트 두 개를 묶어야 트랙패드 특유의 들쭉날쭉함이 가라앉습니다.

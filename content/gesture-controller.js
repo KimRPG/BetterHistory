@@ -10,6 +10,12 @@
   const GESTURE_SHIFT_MAX = 40;
   // 이 정도도 당기지 않은 흔들림으로는 페이지를 이동시키지 않습니다.
   const MIN_PULL_DISTANCE = 24;
+  // 세게 튕기면 손가락도 실제로 멀리 움직이기 때문에, 거리만 보면 오래 당긴
+  // 것과 구분되지 않습니다. 진행 속도에 상한을 둬서 "빨리 튕겨 거리를 버는"
+  // 경우를 막습니다. 기준 거리는 결국 최소 지속 시간으로도 작동합니다.
+  const MAX_PULL_SPEED = 1.4;
+  const MAX_STEP_MS = 50;
+  const DEFAULT_STEP_MS = 16;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
   const SCROLL_OVERFLOW_TOLERANCE = 2;
@@ -21,6 +27,8 @@
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
       this.pullDistance = 0;
+      this.settlingDistance = 0;
+      this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
       this.scrollAreaCache = null;
@@ -143,15 +151,26 @@
       }
       this.gestureDirection = direction;
 
-      const momentum = this.wheelPhase.update(event, deltaX);
-      if (!momentum) {
-        // 손가락이 실제로 움직인 만큼만 쌓습니다. 관성 구간은 이미 손을 뗀
-        // 뒤라서 여기에 넣으면 짧게 튕긴 제스처가 길게 당긴 것처럼 보입니다.
+      // 손가락이 실제로 움직인 만큼만 쌓습니다. 관성 구간은 이미 손을 뗀
+      // 뒤라서 여기에 넣으면 짧게 튕긴 제스처가 길게 당긴 것처럼 보입니다.
+      const phase = this.wheelPhase.update(event, deltaX);
+      const fingerDelta = this.limitPullSpeed(event, getFingerDelta(event, deltaX));
+      const momentum = phase === "momentum";
+
+      if (phase === "finger") {
         this.sawFingerInput = true;
-        this.pullDistance += getFingerDelta(event, deltaX);
-      } else if (!this.sawFingerInput) {
-        // 직전 스크롤이 남긴 관성입니다. 이 제스처의 것이 아닙니다.
-        return;
+        this.pullDistance += this.settlingDistance + fingerDelta;
+        this.settlingDistance = 0;
+      } else if (phase === "settling") {
+        // 느려지기 시작했지만 손을 뗀 것인지는 아직 모릅니다. 관성으로 확정되면
+        // 버리고, 다시 빨라지면 그때 합칩니다.
+        this.settlingDistance += fingerDelta;
+      } else {
+        this.settlingDistance = 0;
+        if (!this.sawFingerInput) {
+          // 직전 스크롤이 남긴 관성입니다. 이 제스처의 것이 아닙니다.
+          return;
+        }
       }
 
       const pulled = Math.abs(this.pullDistance);
@@ -188,6 +207,18 @@
       this.restartIdleTimer(() => this.endGestureCapture());
       this.menu.hideGestureIndicator();
       void action();
+    }
+
+    // 한 이벤트가 기여할 수 있는 거리를 경과 시간에 비례해 제한합니다.
+    // 트랙패드 보고 주기(60/120Hz)가 달라도 같은 속도 상한이 걸립니다.
+    limitPullSpeed(event, fingerDelta) {
+      const elapsed = this.lastWheelAt === null
+        ? DEFAULT_STEP_MS
+        : Math.min(MAX_STEP_MS, Math.max(1, event.timeStamp - this.lastWheelAt));
+      this.lastWheelAt = event.timeStamp;
+
+      const limit = MAX_PULL_SPEED * elapsed;
+      return Math.sign(fingerDelta) * Math.min(Math.abs(fingerDelta), limit);
     }
 
     restartIdleTimer(onIdle) {
@@ -256,7 +287,7 @@
       event.preventDefault();
 
       // 메뉴를 연 제스처의 관성이 그대로 이어지면 선택이 저절로 움직입니다.
-      if (this.wheelPhase.update(event, deltaY)) return;
+      if (this.wheelPhase.update(event, deltaY) === "momentum") return;
 
       this.menuSelectionDistance += getFingerDelta(event, deltaY);
 
@@ -342,6 +373,8 @@
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.pullDistance = 0;
+      this.settlingDistance = 0;
+      this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase.reset();
       this.scrollAreaCache = null;

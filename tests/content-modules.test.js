@@ -515,12 +515,17 @@ test("WheelEvent.momentum이 없으면 감쇠 패턴으로 관성을 알아낸�
 
   controller.menu = createGestureMenuStub();
 
-  // momentum 속성이 없는 구형 Chrome. OS 관성은 표본마다 거의 일정한 비율로
-  // 줄어들기 때문에, 그 패턴이 다섯 번 이어지면 관성으로 판정합니다.
-  let delta = -8;
-  for (let index = 0; index < 16; index += 1) {
-    controller.handleWheel(createWheelEvent(index * 16, delta));
+  // momentum 속성이 없는 구형 Chrome. 손가락 구간은 점점 빨라지고, 손을 떼면
+  // 표본마다 거의 일정한 비율로 줄어듭니다. 그 패턴이 이어지면 관성입니다.
+  for (let index = 1; index <= 6; index += 1) {
+    controller.handleWheel(createWheelEvent((index - 1) * 16, -5 * index));
+  }
+  assert.equal(controller.wheelPhase.momentum, false);
+
+  let delta = -30;
+  for (let index = 0; index < 12; index += 1) {
     delta *= 0.9;
+    controller.handleWheel(createWheelEvent((6 + index) * 16, delta));
   }
   await new Promise((resolve) => setImmediate(resolve));
 
@@ -576,8 +581,8 @@ test("WheelEvent.momentum이 있으면 추정하지 않고 그대로 따른다",
   const runtime = loadContentModules();
   const tracker = new runtime.namespace.WheelPhaseTracker();
 
-  assert.equal(tracker.update(createMomentumEvent(0), -20), true);
-  assert.equal(tracker.update(createFingerEvent(16), -20), false);
+  assert.equal(tracker.update(createMomentumEvent(0), -20), "momentum");
+  assert.equal(tracker.update(createFingerEvent(16), -20), "finger");
 });
 
 test("잦아들던 관성 중에 손가락이 다시 닿으면 판정이 풀린다", () => {
@@ -592,7 +597,7 @@ test("잦아들던 관성 중에 손가락이 다시 닿으면 판정이 풀린�
   assert.equal(tracker.momentum, true);
 
   // 잦아들던 중 훨씬 큰 입력이 들어오면 손가락이 다시 닿은 것입니다.
-  assert.equal(tracker.update(createWheelEvent(300, -40), -40), false);
+  assert.equal(tracker.update(createWheelEvent(300, -40), -40), "finger");
 });
 
 test("열린 메뉴에서 세로 제스처로 항목을 선택하고 손을 떼면 이동한다", async () => {
