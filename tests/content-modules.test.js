@@ -9,6 +9,7 @@ const vm = require("node:vm");
 const contentFiles = [
   "shared/settings.js",
   "content/menu-styles.js",
+  "content/wheel-phase.js",
   "content/history-client.js",
   "content/history-menu.js",
   "content/gesture-controller.js",
@@ -146,7 +147,7 @@ test("favicon API를 지원하는 Chrome 버전을 최소 버전으로 선언한
 
 test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다", () => {
   const runtime = loadContentModules();
-  const { DEFAULT_SETTINGS, HOLD_DURATION_CHOICES, sanitizeSettings } =
+  const { DEFAULT_SETTINGS, PULL_DISTANCE_CHOICES, sanitizeSettings } =
     runtime.namespace;
   const popupHtml = fs.readFileSync(
     path.join(__dirname, "..", "popup.html"),
@@ -154,13 +155,13 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   );
 
   assert.deepEqual(
-    [...HOLD_DURATION_CHOICES].map(({ value }) => value),
-    [100, 200, 300, 500]
+    [...PULL_DISTANCE_CHOICES].map(({ value }) => value),
+    [120, 180, 260]
   );
   assert.equal(popupHtml.includes('src="shared/settings.js"'), true);
-  // 기준 시간 목록은 공유 정의에서만 만들고 마크업에 복제하지 않습니다.
-  assert.equal(popupHtml.includes('<select id="hold-duration"></select>'), true);
-  for (const { value } of HOLD_DURATION_CHOICES) {
+  // 기준 거리 목록은 공유 정의에서만 만들고 마크업에 복제하지 않습니다.
+  assert.equal(popupHtml.includes('<select id="pull-distance"></select>'), true);
+  for (const { value } of PULL_DISTANCE_CHOICES) {
     assert.equal(popupHtml.includes(`value="${value}"`), false);
   }
   assert.deepEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
@@ -168,13 +169,11 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
     JSON.parse(JSON.stringify(sanitizeSettings({
       enabled: false,
       gestureDirection: "left",
-      holdDurationMs: "300"
+      pullDistancePx: "120"
     }))),
-    { enabled: false, gestureDirection: "left", holdDurationMs: 300 }
+    { enabled: false, gestureDirection: "left", pullDistancePx: 120 }
   );
-  assert.equal(sanitizeSettings({ holdDurationMs: 999 }).holdDurationMs, 500);
-  assert.equal(runtime.namespace.usesReversedGestureOrder(100), true);
-  assert.equal(runtime.namespace.usesReversedGestureOrder(500), false);
+  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 180);
 });
 
 test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {
@@ -233,7 +232,7 @@ test("확장 연결이 끊긴 탭의 한 단계 이동은 조용히 무시한다
   );
 });
 
-test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", () => {
+test("기준 거리를 넘게 당기면 손을 떼기 전에 메뉴가 열린다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -244,11 +243,76 @@ test("500ms 전에 끝난 가로 제스처는 히스토리 메뉴를 연다", ()
       return Promise.resolve(true);
     }
   });
-  controller.handleWheel(createWheelEvent(0, -0.6));
-  controller.handleWheel(createWheelEvent(300, -0.6));
-  controller.finishShortGesture();
 
+  // 기본 기준은 180px입니다. 8번(160px)까지는 아직 열리지 않아야 합니다.
+  for (let index = 0; index < 8; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+  assert.deepEqual(openedDirections, []);
+
+  controller.handleWheel(createFingerEvent(8 * 16));
   assert.deepEqual(openedDirections, ["back"]);
+  controller.endGestureCapture();
+});
+
+test("기준 거리 전에 입력이 끊기면 한 단계만 이동한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  for (let index = 0; index < 4; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+
+  // 튕기지 않고 천천히 놓으면 관성이 없어 이벤트가 그냥 끊깁니다.
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
+});
+
+test("설정한 기준 거리를 따른다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.settings.pullDistancePx = 120;
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  for (let index = 0; index < 5; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+  assert.deepEqual(openedDirections, []);
+
+  controller.handleWheel(createFingerEvent(5 * 16));
+  assert.deepEqual(openedDirections, ["back"]);
+  controller.endGestureCapture();
+});
+
+test("아주 짧은 흔들림으로는 페이지를 이동하지 않는다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createFingerEvent(0, -10));
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(runtime.messages.length, 0);
 });
 
 test("페이지 본문에는 어떤 변환도 걸지 않는다", () => {
@@ -278,7 +342,7 @@ test("가로 제스처를 따라 인디케이터가 손가락 방향으로 움�
   assert.equal(shifts[1] > shifts[0], true);
 
   controller.endGestureCapture();
-  assert.equal(controller.gestureShift, 0);
+  assert.equal(controller.pullDistance, 0);
 });
 
 test("인디케이터 이동량은 상한을 넘지 않는다", () => {
@@ -324,29 +388,27 @@ test("문서가 그 방향으로 더 스크롤될 때만 제스처를 양보한�
   const root = { clientWidth: 1200, scrollWidth: 1206, scrollLeft: 0 };
   const runtime = loadContentModules({ scrollingElement: root });
   const controller = new runtime.namespace.GestureController();
-  const openedDirections = [];
 
-  controller.menu = createGestureMenuStub({
-    open: (direction) => {
-      openedDirections.push(direction);
-      return Promise.resolve(true);
-    }
-  });
+  controller.menu = createGestureMenuStub();
 
   // 왼쪽 끝이라 뒤로가기 방향으로는 더 스크롤될 여지가 없습니다.
-  controller.handleWheel(createWheelEvent(0, -20));
-  controller.finishShortGesture();
-  assert.deepEqual(openedDirections, ["back"]);
+  let capturedBack = false;
+  const back = createFingerEvent(0, -20);
+  back.preventDefault = () => {
+    capturedBack = true;
+  };
+  controller.handleWheel(back);
+  assert.equal(capturedBack, true);
+  controller.endGestureCapture();
 
   // 오른쪽으로는 아직 스크롤이 남아 있으므로 페이지에 양보합니다.
-  let prevented = false;
-  const event = createWheelEvent(1000, 20);
-  event.preventDefault = () => {
-    prevented = true;
+  let capturedForward = false;
+  const forward = createFingerEvent(1000, 20);
+  forward.preventDefault = () => {
+    capturedForward = true;
   };
-  controller.handleWheel(event);
-  assert.equal(prevented, false);
-  assert.deepEqual(openedDirections, ["back"]);
+  controller.handleWheel(forward);
+  assert.equal(capturedForward, false);
 });
 
 test("같은 제스처 안에서는 스크롤 영역 판정을 다시 계산하지 않는다", () => {
@@ -395,18 +457,49 @@ test("페이지 단위 휠 값은 축에 맞는 크기로 환산한다", () => {
   controller.resetMenuSelection();
 });
 
-test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () => {
+test("관성 이벤트는 당긴 거리에 넣지 않는다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+
+  // 손가락으로는 60px만 당겼습니다.
+  for (let index = 0; index < 3; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+  // 손을 뗀 뒤 관성이 400px를 더 흘려보내도 기준(180px)을 넘으면 안 됩니다.
+  for (let index = 0; index < 20; index += 1) {
+    controller.handleWheel(createMomentumEvent(48 + index * 16));
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
+  // 관성이 아무리 길어도 이동은 한 번뿐입니다.
+  assert.equal(runtime.messages.length, 1);
+});
+
+test("관성이 시작되면 기다리지 않고 바로 한 단계 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
 
   controller.menu = createGestureMenuStub();
-
-  for (const timeStamp of [0, 250, 499]) {
-    controller.handleWheel(createWheelEvent(timeStamp));
+  for (let index = 0; index < 3; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
   }
   assert.equal(runtime.messages.length, 0);
 
-  controller.handleWheel(createWheelEvent(500));
+  // idle 타이머를 기다리지 않고 첫 관성 이벤트에서 판정합니다.
+  controller.handleWheel(createMomentumEvent(48));
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
@@ -416,21 +509,22 @@ test("가로 제스처가 500ms 이어지면 한 단계 이동한다", async () 
   controller.endGestureCapture();
 });
 
-test("설정한 기준 시간이 지나야 한 단계 이동한다", async () => {
+test("WheelEvent.momentum이 없으면 감쇠 패턴으로 관성을 알아낸다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
 
-  controller.settings.holdDurationMs = 300;
   controller.menu = createGestureMenuStub();
 
-  for (const timeStamp of [0, 150, 299]) {
-    controller.handleWheel(createWheelEvent(timeStamp));
+  // momentum 속성이 없는 구형 Chrome. OS 관성은 표본마다 거의 일정한 비율로
+  // 줄어들기 때문에, 그 패턴이 다섯 번 이어지면 관성으로 판정합니다.
+  let delta = -8;
+  for (let index = 0; index < 16; index += 1) {
+    controller.handleWheel(createWheelEvent(index * 16, delta));
+    delta *= 0.9;
   }
-  assert.equal(runtime.messages.length, 0);
-
-  controller.handleWheel(createWheelEvent(300));
   await new Promise((resolve) => setImmediate(resolve));
 
+  assert.equal(controller.wheelPhase.momentum, true);
   assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
     type: "NAVIGATE_ONE_STEP",
     direction: "back"
@@ -438,47 +532,68 @@ test("설정한 기준 시간이 지나야 한 단계 이동한다", async () =>
   controller.endGestureCapture();
 });
 
-for (const holdDurationMs of [100, 200]) {
-  const durationLabel = `${holdDurationMs / 1000}초`;
+test("일정한 속도로 계속 당기는 동안은 관성으로 보지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
 
-  test(`${durationLabel} 설정에서는 짧은 제스처로 한 단계 이동한다`, async () => {
-    const runtime = loadContentModules();
-    const controller = new runtime.namespace.GestureController();
-
-    controller.settings.holdDurationMs = holdDurationMs;
-    controller.menu = createGestureMenuStub();
-    controller.handleWheel(createWheelEvent(0, -0.6));
-    controller.handleWheel(createWheelEvent(holdDurationMs - 10, -0.6));
-    controller.finishShortGesture();
-    await new Promise((resolve) => setImmediate(resolve));
-
-    assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
-      type: "NAVIGATE_ONE_STEP",
-      direction: "back"
-    });
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
   });
+  for (let index = 0; index < 9; index += 1) {
+    controller.handleWheel(createWheelEvent(index * 16, -20));
+  }
 
-  test(`${durationLabel} 설정에서는 길게 당기면 히스토리 메뉴를 연다`, () => {
-    const runtime = loadContentModules();
-    const controller = new runtime.namespace.GestureController();
-    const openedDirections = [];
+  assert.equal(controller.wheelPhase.momentum, false);
+  assert.deepEqual(openedDirections, ["back"]);
+  controller.endGestureCapture();
+});
 
-    controller.settings.holdDurationMs = holdDurationMs;
-    controller.menu = createGestureMenuStub({
-      open: (direction) => {
-        openedDirections.push(direction);
-        return Promise.resolve(true);
-      }
-    });
+test("직전 스크롤이 남긴 관성으로는 제스처를 시작하지 않는다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
 
-    controller.handleWheel(createWheelEvent(0));
-    controller.handleWheel(createWheelEvent(holdDurationMs - 1));
-    assert.deepEqual(openedDirections, []);
-
-    controller.handleWheel(createWheelEvent(holdDurationMs));
-    assert.deepEqual(openedDirections, ["back"]);
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
   });
-}
+  for (let index = 0; index < 20; index += 1) {
+    controller.handleWheel(createMomentumEvent(index * 16));
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, []);
+  assert.equal(runtime.messages.length, 0);
+});
+
+test("WheelEvent.momentum이 있으면 추정하지 않고 그대로 따른다", () => {
+  const runtime = loadContentModules();
+  const tracker = new runtime.namespace.WheelPhaseTracker();
+
+  assert.equal(tracker.update(createMomentumEvent(0), -20), true);
+  assert.equal(tracker.update(createFingerEvent(16), -20), false);
+});
+
+test("잦아들던 관성 중에 손가락이 다시 닿으면 판정이 풀린다", () => {
+  const runtime = loadContentModules();
+  const tracker = new runtime.namespace.WheelPhaseTracker();
+
+  let delta = -8;
+  for (let index = 0; index < 16; index += 1) {
+    tracker.update(createWheelEvent(index * 16, delta), delta);
+    delta *= 0.9;
+  }
+  assert.equal(tracker.momentum, true);
+
+  // 잦아들던 중 훨씬 큰 입력이 들어오면 손가락이 다시 닿은 것입니다.
+  assert.equal(tracker.update(createWheelEvent(300, -40), -40), false);
+});
 
 test("열린 메뉴에서 세로 제스처로 항목을 선택하고 손을 떼면 이동한다", async () => {
   const runtime = loadContentModules();
@@ -557,6 +672,15 @@ function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {
     timeStamp,
     webkitDirectionInvertedFromDevice: true
   };
+}
+
+// Chrome 151+는 관성 여부를 WheelEvent.momentum으로 알려 줍니다.
+function createFingerEvent(timeStamp, deltaX = -20) {
+  return { ...createWheelEvent(timeStamp, deltaX), momentum: false };
+}
+
+function createMomentumEvent(timeStamp, deltaX = -20) {
+  return { ...createWheelEvent(timeStamp, deltaX), momentum: true };
 }
 
 function createGestureMenuStub(overrides = {}) {

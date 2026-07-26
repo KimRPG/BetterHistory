@@ -1,20 +1,20 @@
 "use strict";
 
-const { DEFAULT_SETTINGS, HOLD_DURATION_CHOICES, sanitizeSettings } =
+const { DEFAULT_SETTINGS, PULL_DISTANCE_CHOICES, sanitizeSettings } =
   globalThis.GestureBackHistory;
 
 const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
-const holdDurationInput = document.querySelector("#hold-duration");
+const pullDistanceInput = document.querySelector("#pull-distance");
 const status = document.querySelector("#status");
 let statusTimer = null;
 
-buildHoldDurationOptions();
+buildPullDistanceOptions();
 initialize();
 
-function buildHoldDurationOptions() {
-  holdDurationInput.replaceChildren(
-    ...HOLD_DURATION_CHOICES.map(({ value, label }) => {
+function buildPullDistanceOptions() {
+  pullDistanceInput.replaceChildren(
+    ...PULL_DISTANCE_CHOICES.map(({ value, label }) => {
       const option = document.createElement("option");
       option.value = String(value);
       option.textContent = label;
@@ -30,7 +30,7 @@ async function initialize() {
     );
     enabledInput.checked = settings.enabled;
     directionInput.value = settings.gestureDirection;
-    holdDurationInput.value = String(settings.holdDurationMs);
+    pullDistanceInput.value = String(settings.pullDistancePx);
   } catch (error) {
     showStatus(error instanceof Error ? error.message : String(error), true);
   }
@@ -38,7 +38,7 @@ async function initialize() {
 
 enabledInput.addEventListener("change", save);
 directionInput.addEventListener("change", save);
-holdDurationInput.addEventListener("change", save);
+pullDistanceInput.addEventListener("change", save);
 
 async function save() {
   try {
@@ -46,7 +46,7 @@ async function save() {
       sanitizeSettings({
         enabled: enabledInput.checked,
         gestureDirection: directionInput.value,
-        holdDurationMs: holdDurationInput.value
+        pullDistancePx: pullDistanceInput.value
       })
     );
     showStatus("저장됨");

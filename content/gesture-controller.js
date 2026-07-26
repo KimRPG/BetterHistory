@@ -3,12 +3,13 @@
 
   const namespace = globalThis.GestureBackHistory ??= {};
   const { DEFAULT_SETTINGS, sanitizeSettings } = namespace;
-  const isReversedHoldDuration = namespace.usesReversedGestureOrder;
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_IDLE_MS = 190;
   const MENU_SELECTION_RELEASE_MS = 300;
   const GESTURE_SHIFT_SCALE = 0.42;
   const GESTURE_SHIFT_MAX = 40;
+  // 이 정도도 당기지 않은 흔들림으로는 페이지를 이동시키지 않습니다.
+  const MIN_PULL_DISTANCE = 24;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
   const SCROLL_OVERFLOW_TOLERANCE = 2;
@@ -16,11 +17,12 @@
   class GestureController {
     constructor() {
       this.settings = { ...DEFAULT_SETTINGS };
-      this.gestureStartedAt = null;
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
-      this.gestureShift = 0;
+      this.pullDistance = 0;
+      this.sawFingerInput = false;
+      this.wheelPhase = new namespace.WheelPhaseTracker();
       this.scrollAreaCache = null;
       this.menuSelectionDistance = 0;
       this.menuSelectionUsed = false;
@@ -140,38 +142,52 @@
         this.endGestureCapture();
       }
       this.gestureDirection = direction;
-      this.gestureShift = clamp(
-        this.gestureShift + getFingerDelta(event, deltaX) * GESTURE_SHIFT_SCALE,
-        GESTURE_SHIFT_MAX
-      );
 
-      if (this.gestureStartedAt === null) {
-        this.gestureStartedAt = event.timeStamp;
+      const momentum = this.wheelPhase.update(event, deltaX);
+      if (!momentum) {
+        // 손가락이 실제로 움직인 만큼만 쌓습니다. 관성 구간은 이미 손을 뗀
+        // 뒤라서 여기에 넣으면 짧게 튕긴 제스처가 길게 당긴 것처럼 보입니다.
+        this.sawFingerInput = true;
+        this.pullDistance += getFingerDelta(event, deltaX);
+      } else if (!this.sawFingerInput) {
+        // 직전 스크롤이 남긴 관성입니다. 이 제스처의 것이 아닙니다.
+        return;
       }
-      const gestureDuration = Math.max(0, event.timeStamp - this.gestureStartedAt);
+
+      const pulled = Math.abs(this.pullDistance);
       this.menu.showGestureIndicator({
         clientY: event.clientY,
-        progress: gestureDuration / this.settings.holdDurationMs,
+        progress: pulled / this.settings.pullDistancePx,
         direction,
-        shift: this.gestureShift
+        shift: clamp(this.pullDistance * GESTURE_SHIFT_SCALE, GESTURE_SHIFT_MAX)
       });
 
+      if (pulled >= this.settings.pullDistancePx) {
+        this.finishGesture(() => this.openHistoryMenu(direction));
+        return;
+      }
+
+      // 관성이 시작됐다는 것은 손가락을 뗐다는 뜻입니다. 기준을 넘지 못했으니
+      // 기다리지 않고 바로 한 단계만 이동합니다.
+      if (momentum) {
+        if (pulled < MIN_PULL_DISTANCE) {
+          this.endGestureCapture();
+          return;
+        }
+        this.finishGesture(() => this.navigateOneStep(direction));
+        return;
+      }
+
       this.restartIdleTimer(() => this.finishShortGesture());
+    }
 
-      if (gestureDuration < this.settings.holdDurationMs) {
-        return;
-      }
-
-      if (this.usesReversedGestureOrder()) {
-        this.endGestureCapture();
-        void this.openHistoryMenu(direction);
-        return;
-      }
-
+    // 판정이 끝난 뒤에도 관성 이벤트가 한참 더 들어오므로, 입력이 잦아들 때까지
+    // 삼키고 나서 상태를 정리합니다.
+    finishGesture(action) {
       this.gestureTriggered = true;
       this.restartIdleTimer(() => this.endGestureCapture());
       this.menu.hideGestureIndicator();
-      void this.navigateOneStep(direction);
+      void action();
     }
 
     restartIdleTimer(onIdle) {
@@ -179,22 +195,17 @@
       this.gestureIdleTimer = setTimeout(onIdle, GESTURE_IDLE_MS);
     }
 
+    // 튕기지 않고 천천히 손을 떼면 관성이 없어서 이벤트가 그냥 끊깁니다.
+    // 이때는 입력이 멈춘 것을 손을 뗀 것으로 봅니다.
     finishShortGesture() {
       const direction = this.gestureDirection;
-      const shouldHandleGesture = !this.gestureTriggered && direction !== null;
-      const shouldNavigate = shouldHandleGesture && this.usesReversedGestureOrder();
+      const pulled = Math.abs(this.pullDistance);
+      const shouldNavigate = !this.gestureTriggered &&
+        direction !== null &&
+        pulled >= MIN_PULL_DISTANCE;
       this.endGestureCapture();
-      if (!shouldHandleGesture) return;
 
-      if (shouldNavigate) {
-        void this.navigateOneStep(direction);
-      } else {
-        void this.openHistoryMenu(direction);
-      }
-    }
-
-    usesReversedGestureOrder() {
-      return isReversedHoldDuration(this.settings.holdDurationMs);
+      if (shouldNavigate) void this.navigateOneStep(direction);
     }
 
     async navigateOneStep(direction) {
@@ -243,6 +254,9 @@
     updateMenuSelection(event, deltaY) {
       if (!event.cancelable) return;
       event.preventDefault();
+
+      // 메뉴를 연 제스처의 관성이 그대로 이어지면 선택이 저절로 움직입니다.
+      if (this.wheelPhase.update(event, deltaY)) return;
 
       this.menuSelectionDistance += getFingerDelta(event, deltaY);
 
@@ -325,10 +339,11 @@
     endGestureCapture() {
       clearTimeout(this.gestureIdleTimer);
       this.gestureIdleTimer = null;
-      this.gestureStartedAt = null;
       this.gestureTriggered = false;
       this.gestureDirection = null;
-      this.gestureShift = 0;
+      this.pullDistance = 0;
+      this.sawFingerInput = false;
+      this.wheelPhase.reset();
       this.scrollAreaCache = null;
       this.menu.hideGestureIndicator();
     }
