@@ -5,6 +5,10 @@
   const { DEFAULT_SETTINGS, sanitizeSettings } = namespace;
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_IDLE_MS = 190;
+  // 관성이 없는 느린 릴리스는 입력이 끊긴 것으로만 알 수 있습니다. 그런데 당기다
+  // 잠깐 쉬는 것도 똑같이 보이므로, 튕김을 관성으로 즉시 잡게 된 지금은 이쪽을
+  // 넉넉히 기다려 주는 편이 낫습니다. 그래야 당기는 도중에 끊기지 않습니다.
+  const GESTURE_RELEASE_MS = 450;
   const MENU_SELECTION_RELEASE_MS = 300;
   const GESTURE_SHIFT_SCALE = 0.42;
   const GESTURE_SHIFT_MAX = 40;
@@ -197,7 +201,10 @@
         return;
       }
 
-      this.restartIdleTimer(() => this.finishShortGesture());
+      this.restartIdleTimer(
+        () => this.finishShortGesture(),
+        GESTURE_RELEASE_MS
+      );
     }
 
     // 판정이 끝난 뒤에도 관성 이벤트가 한참 더 들어오므로, 입력이 잦아들 때까지
@@ -221,9 +228,9 @@
       return Math.sign(fingerDelta) * Math.min(Math.abs(fingerDelta), limit);
     }
 
-    restartIdleTimer(onIdle) {
+    restartIdleTimer(onIdle, delay = GESTURE_IDLE_MS) {
       clearTimeout(this.gestureIdleTimer);
-      this.gestureIdleTimer = setTimeout(onIdle, GESTURE_IDLE_MS);
+      this.gestureIdleTimer = setTimeout(onIdle, delay);
     }
 
     // 튕기지 않고 천천히 손을 떼면 관성이 없어서 이벤트가 그냥 끊깁니다.

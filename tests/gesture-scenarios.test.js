@@ -18,6 +18,9 @@ const contentFiles = JSON.parse(
 function createController() {
   const messages = [];
   const opened = [];
+  const timers = new Map();
+  let now = 0;
+  let nextTimerId = 1;
   const context = vm.createContext({
     chrome: {
       runtime: {
@@ -32,7 +35,7 @@ function createController() {
         onChanged: { addListener() {} }
       }
     },
-    clearTimeout,
+    clearTimeout: (id) => timers.delete(id),
     console,
     document: {
       scrollingElement: null,
@@ -45,7 +48,11 @@ function createController() {
     },
     Element: class Element {},
     getComputedStyle: () => ({ overflowX: "visible" }),
-    setTimeout,
+    setTimeout: (fn, delay) => {
+      const id = nextTimerId += 1;
+      timers.set(id, { fn, due: now + delay });
+      return id;
+    },
     URL,
     WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
     window: { innerHeight: 800, innerWidth: 1200, addEventListener() {} }
@@ -72,10 +79,39 @@ function createController() {
     showToast() {}
   };
 
-  return { controller, messages, opened };
+  // 가상 시계. 실제 대기 없이 idle/release 타이머를 정확한 시점에 돌립니다.
+  function advance(ms) {
+    const target = now + ms;
+    for (;;) {
+      let next = null;
+      for (const [id, timer] of timers) {
+        if (timer.due <= target && (next === null || timer.due < next[1].due)) {
+          next = [id, timer];
+        }
+      }
+      if (next === null) break;
+      timers.delete(next[0]);
+      now = next[1].due;
+      next[1].fn();
+    }
+    now = target;
+  }
+
+  function wheel(deltaX, deltaY = 0, momentum = undefined) {
+    controller.handleWheel(wheelEvent(now, deltaX, deltaY, momentum));
+  }
+
+  function outcome() {
+    if (opened.length > 0) return "menu";
+    return messages.some((message) => message.type === "NAVIGATE_ONE_STEP")
+      ? "back"
+      : "none";
+  }
+
+  return { controller, messages, opened, advance, wheel, outcome };
 }
 
-function wheelEvent(timeStamp, deltaX, momentum, nativeMomentum) {
+function wheelEvent(timeStamp, deltaX, deltaY, momentum) {
   const event = {
     cancelable: true,
     clientY: 400,
@@ -83,42 +119,40 @@ function wheelEvent(timeStamp, deltaX, momentum, nativeMomentum) {
     ctrlKey: false,
     deltaMode: 0,
     deltaX,
-    deltaY: 0,
+    deltaY,
     isTrusted: true,
     preventDefault() {},
     timeStamp,
     webkitDirectionInvertedFromDevice: true
   };
   // Chrome 151+ 만 관성 여부를 직접 알려 줍니다.
-  if (nativeMomentum) event.momentum = momentum;
+  if (momentum !== undefined) event.momentum = momentum;
   return event;
 }
 
 // 손가락 구간은 peak까지 가속하고, 손을 떼면 이벤트마다 decay 비율로 줄어듭니다.
 function playGesture({ fingerSteps, peak, decay, interval, nativeMomentum }) {
-  const { controller, messages, opened } = createController();
-  let at = 0;
+  const harness = createController();
 
   for (let step = 1; step <= fingerSteps; step += 1) {
-    const magnitude = (peak * step) / fingerSteps;
-    controller.handleWheel(wheelEvent(at, -magnitude, false, nativeMomentum));
-    at += interval;
+    harness.wheel(
+      -(peak * step) / fingerSteps,
+      0,
+      nativeMomentum ? false : undefined
+    );
+    harness.advance(interval);
   }
 
   let magnitude = peak;
   for (let step = 0; step < 400; step += 1) {
     magnitude *= decay;
     if (magnitude < 0.5) break;
-    controller.handleWheel(wheelEvent(at, -magnitude, true, nativeMomentum));
-    at += interval;
+    harness.wheel(-magnitude, 0, nativeMomentum ? true : undefined);
+    harness.advance(interval);
   }
 
-  controller.endGestureCapture();
-
-  if (opened.length > 0) return "menu";
-  return messages.some((message) => message.type === "NAVIGATE_ONE_STEP")
-    ? "back"
-    : "none";
+  harness.advance(1200);
+  return harness.outcome();
 }
 
 const scenarios = [
@@ -165,4 +199,62 @@ test("세게 튕겨도 오래 당긴 것으로 오해하지 않는다", () => {
 
   assert.equal(flick, "back");
   assert.equal(pull, "menu");
+});
+
+// 손가락은 계속 닿아 있는데 입력만 잠시 끊기는 상황들. 여기서 "손을 뗐다"고
+// 판정해 버리면 당기던 제스처가 중간에 뒤로가기로 끊깁니다.
+const FRAME = 8.3;
+
+function pull(harness, steps, magnitude = 12) {
+  for (let step = 0; step < steps; step += 1) {
+    harness.wheel(-magnitude, 0, false);
+    harness.advance(FRAME);
+  }
+}
+
+test("당기다 잠깐 쉬어도 제스처가 끊기지 않는다", () => {
+  for (const pauseMs of [120, 250, 400]) {
+    const harness = createController();
+    pull(harness, 10);
+    harness.advance(pauseMs);
+    pull(harness, 14);
+    harness.advance(1200);
+
+    assert.equal(harness.outcome(), "menu", `${pauseMs}ms 쉬었을 때`);
+  }
+});
+
+test("당기다 감속해도 관성으로 오해하지 않는다", () => {
+  const harness = createController();
+  let magnitude = 20;
+
+  for (let step = 0; step < 40; step += 1) {
+    harness.wheel(-magnitude, 0, false);
+    harness.advance(FRAME);
+    magnitude = Math.max(7, magnitude * 0.92);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "menu");
+});
+
+test("세로로 흔들리며 당겨도 기준을 넘기면 메뉴가 열린다", () => {
+  const harness = createController();
+
+  for (let step = 0; step < 30; step += 1) {
+    harness.wheel(-12, step % 4 === 0 ? -14 : -2, false);
+    harness.advance(FRAME);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "menu");
+});
+
+test("기준에 못 미친 채 입력이 멈추면 한 단계만 이동한다", () => {
+  const harness = createController();
+
+  pull(harness, 8);
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "back");
 });
