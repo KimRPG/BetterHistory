@@ -126,10 +126,13 @@
       const absoluteY = Math.abs(deltaY);
       const horizontal = absoluteX > absoluteY * HORIZONTAL_RATIO;
 
+      // 세로 판정은 가로 판정과 대칭이어야 합니다. 기준이 느슨하면 비스듬히
+      // 당기는 동작이 "당김"이면서 동시에 "선택"으로 잡혀, 메뉴가 열린 순간
+      // 같은 손짓이 선택을 움직이고 엉뚱한 항목으로 이동해 버립니다.
       if (
         this.menu.isOpen() &&
         absoluteY > 0.5 &&
-        absoluteY >= absoluteX * 0.55
+        absoluteY > absoluteX * HORIZONTAL_RATIO
       ) {
         this.updateMenuSelection(event, deltaY);
         return;

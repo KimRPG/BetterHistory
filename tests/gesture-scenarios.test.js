@@ -64,15 +64,32 @@ function createController() {
   }
 
   const controller = new context.GestureBackHistory.GestureController();
+  // 실제 메뉴처럼 열린 뒤에는 isOpen()이 true가 됩니다. 이걸 흉내 내지 않으면
+  // "메뉴가 열린 뒤" 경로가 테스트에서 통째로 빠집니다.
+  let menuOpen = false;
+  let selectedId = 0;
+  const selectionMoves = [];
+  const entryNavigations = [];
+
   controller.menu = {
-    getSelected: () => null,
+    close() { menuOpen = false; },
+    getSelected: () => ({ entry: { id: selectedId }, button: {} }),
     hideGestureIndicator() {},
     isBusy: () => false,
     isEventFromUi: () => false,
-    isOpen: () => false,
-    moveSelection() {},
+    isOpen: () => menuOpen,
+    moveSelection: (step) => {
+      selectedId += step;
+      selectionMoves.push(step);
+    },
+    navigate: (entry) => {
+      entryNavigations.push(entry);
+      menuOpen = false;
+      return Promise.resolve(true);
+    },
     open: (direction) => {
       opened.push(direction);
+      menuOpen = true;
       return Promise.resolve(true);
     },
     showGestureIndicator() {},
@@ -108,7 +125,16 @@ function createController() {
       : "none";
   }
 
-  return { controller, messages, opened, advance, wheel, outcome };
+  return {
+    controller,
+    messages,
+    opened,
+    selectionMoves,
+    entryNavigations,
+    advance,
+    wheel,
+    outcome
+  };
 }
 
 function wheelEvent(timeStamp, deltaX, deltaY, momentum) {
@@ -257,4 +283,37 @@ test("기준에 못 미친 채 입력이 멈추면 한 단계만 이동한다", 
   harness.advance(1200);
 
   assert.equal(harness.outcome(), "back");
+});
+
+test("비스듬히 당겨 메뉴가 열려도 선택이 저절로 움직이지 않는다", () => {
+  const harness = createController();
+
+  // 손가락이 정확히 수평으로 움직이는 일은 없습니다. 세로가 가로의 60%쯤
+  // 섞인 대각선 당김은 흔한 입력입니다.
+  for (let step = 0; step < 40; step += 1) {
+    harness.wheel(-14, step % 2 === 0 ? -8 : -9, false);
+    harness.advance(FRAME);
+  }
+  harness.advance(1200);
+
+  assert.deepEqual([...harness.opened], ["back"]);
+  assert.deepEqual([...harness.selectionMoves], []);
+  assert.deepEqual([...harness.entryNavigations], []);
+});
+
+test("메뉴가 열린 뒤 위·아래로 움직이면 선택이 움직이고 놓으면 이동한다", () => {
+  const harness = createController();
+
+  pull(harness, 20, 14);
+  assert.deepEqual([...harness.opened], ["back"]);
+
+  // 이제는 가로 성분이 거의 없는 분명한 세로 움직임입니다.
+  for (let step = 0; step < 8; step += 1) {
+    harness.wheel(-1, -20, false);
+    harness.advance(FRAME);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.selectionMoves.length > 0, true);
+  assert.equal(harness.entryNavigations.length, 1);
 });
