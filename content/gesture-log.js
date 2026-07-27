@@ -12,8 +12,7 @@
 
   const ACTION_LABELS = {
     menu: "기록 메뉴 열기",
-    navigate: "한 단계 이동",
-    ignored: "무시 (기준 미달)"
+    navigate: "한 단계 이동"
   };
   const RELEASE_LABELS = {
     threshold: "기준 거리 도달 (당기는 중 바로)",

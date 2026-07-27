@@ -312,7 +312,7 @@ test("설정한 기준 거리를 따른다", () => {
   controller.endGestureCapture();
 });
 
-test("아주 짧은 흔들림으로는 페이지를 이동하지 않는다", async () => {
+test("아주 짧은 제스처도 한 단계 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
 
@@ -321,7 +321,10 @@ test("아주 짧은 흔들림으로는 페이지를 이동하지 않는다", asy
   controller.finishShortGesture();
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(runtime.messages.length, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
 });
 
 test("페이지 본문에는 어떤 변환도 걸지 않는다", () => {

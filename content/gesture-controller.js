@@ -12,8 +12,6 @@
   const MENU_SELECTION_RELEASE_MS = 300;
   const GESTURE_SHIFT_SCALE = 0.42;
   const GESTURE_SHIFT_MAX = 40;
-  // 이 정도도 당기지 않은 흔들림으로는 페이지를 이동시키지 않습니다.
-  const MIN_PULL_DISTANCE = 24;
   // 세게 튕기면 손가락도 실제로 멀리 움직이기 때문에, 거리만 보면 오래 당긴
   // 것과 구분되지 않습니다. 진행 속도에 상한을 둬서 "빨리 튕겨 거리를 버는"
   // 경우를 막습니다. 기준 거리는 결국 최소 지속 시간으로도 작동합니다.
@@ -221,13 +219,12 @@
       // 관성이 시작됐다는 것은 손가락을 뗐다는 뜻입니다. 기준을 넘지 못했으니
       // 기다리지 않고 바로 한 단계만 이동합니다.
       if (momentum) {
-        const action = pulled < MIN_PULL_DISTANCE ? "ignored" : "navigate";
-        this.log.finish({ action, release: "momentum", pulled, at: event.timeStamp });
-
-        if (action === "ignored") {
-          this.endGestureCapture();
-          return;
-        }
+        this.log.finish({
+          action: "navigate",
+          release: "momentum",
+          pulled,
+          at: event.timeStamp
+        });
         this.finishGesture(() => this.navigateOneStep(direction));
         return;
       }
@@ -275,14 +272,8 @@
     finishShortGesture() {
       const direction = this.gestureDirection;
       const pulled = Math.abs(this.pullDistance);
-      const shouldNavigate = !this.gestureTriggered &&
-        direction !== null &&
-        pulled >= MIN_PULL_DISTANCE;
-      this.log.finish({
-        action: shouldNavigate ? "navigate" : "ignored",
-        release: "idle",
-        pulled
-      });
+      const shouldNavigate = !this.gestureTriggered && direction !== null;
+      this.log.finish({ action: "navigate", release: "idle", pulled });
       this.endGestureCapture();
 
       if (shouldNavigate) void this.navigateOneStep(direction);

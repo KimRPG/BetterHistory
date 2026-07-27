@@ -190,7 +190,7 @@ const scenarios = [
   ["기준에 못 미치게 당기기", "back", { fingerSteps: 14, peak: 12, decay: 0.9, interval: 8.3 }],
   ["길게 당기기", "menu", { fingerSteps: 28, peak: 18, decay: 0.9, interval: 8.3 }],
   ["아주 길게 당기기", "menu", { fingerSteps: 40, peak: 16, decay: 0.9, interval: 8.3 }],
-  ["살짝 스치기", "none", { fingerSteps: 2, peak: 8, decay: 0.85, interval: 8.3 }]
+  ["살짝 스치기", "back", { fingerSteps: 2, peak: 8, decay: 0.85, interval: 8.3 }]
 ];
 
 for (const nativeMomentum of [true, false]) {
@@ -277,12 +277,15 @@ test("세로로 흔들리며 당겨도 기준을 넘기면 메뉴가 열린다",
 });
 
 test("기준에 못 미친 채 입력이 멈추면 한 단계만 이동한다", () => {
-  const harness = createController();
+  for (const steps of [1, 3, 8]) {
+    const harness = createController();
 
-  pull(harness, 8);
-  harness.advance(1200);
+    pull(harness, steps);
+    harness.advance(1200);
 
-  assert.equal(harness.outcome(), "back");
+    // 가로 제스처로 인식된 이상 크기와 무관하게 한 단계 이동합니다.
+    assert.equal(harness.outcome(), "back", `${steps}회 입력`);
+  }
 });
 
 test("비스듬히 당겨 메뉴가 열려도 선택이 저절로 움직이지 않는다", () => {

@@ -5,8 +5,7 @@ const { DEFAULT_SETTINGS, PULL_DISTANCE_CHOICES, sanitizeSettings } =
 
 const ACTION_LABELS = {
   menu: "메뉴",
-  navigate: "한 단계",
-  ignored: "무시"
+  navigate: "한 단계"
 };
 
 const enabledInput = document.querySelector("#enabled");
