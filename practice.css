@@ -121,6 +121,9 @@ h2 { font-size: 13px; font-weight: 680; margin: 0 0 8px; }
 .mark.menu { background: #4f46e5; }
 .mark.latest { box-shadow: 0 0 0 3px rgba(15, 23, 42, .18); }
 
+.track-time { height: 34px; margin-top: 4px; }
+.track-time .zone { font-size: 9px; padding: 4px 10px; }
+
 .scale {
   color: #9ca3af;
   display: flex;

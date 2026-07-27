@@ -11,7 +11,8 @@ const TRACK_RANGE_RATIO = 2;
 const MAX_ATTEMPTS = 12;
 const ACTION_LABELS = { menu: "메뉴", navigate: "한 단계" };
 const RELEASE_LABELS = {
-  threshold: "기준 도달",
+  threshold: "거리 도달",
+  hold: "시간 도달",
   momentum: "관성 시작",
   idle: "입력 멈춤"
 };
@@ -28,6 +29,11 @@ const elements = {
   fill: document.querySelector("#fill"),
   line: document.querySelector("#line"),
   lineLabel: document.querySelector("#line-label"),
+  fillTime: document.querySelector("#fill-time"),
+  lineTime: document.querySelector("#line-time"),
+  lineTimeLabel: document.querySelector("#line-time-label"),
+  scaleTimeMax: document.querySelector("#scale-time-max"),
+  reason: document.querySelector("#v-reason"),
   marks: document.querySelector("#marks"),
   scaleMax: document.querySelector("#scale-max"),
   pulled: document.querySelector("#v-pulled"),
@@ -43,6 +49,7 @@ const elements = {
 
 const attempts = [];
 let threshold = DEFAULT_SETTINGS.pullDistancePx;
+let holdThreshold = DEFAULT_SETTINGS.pullHoldMs;
 
 // 연습 페이지에서는 실제 이동 대신 결과만 기록합니다.
 namespace.historyClient = {
@@ -101,6 +108,7 @@ async function loadThreshold() {
     await chrome.storage.sync.get(DEFAULT_SETTINGS)
   );
   threshold = settings.pullDistancePx;
+  holdThreshold = settings.pullHoldMs;
   elements.threshold.value = String(threshold);
   renderTrack();
 }
@@ -119,10 +127,17 @@ function toPercent(distance) {
   return Math.min(100, (distance / trackRange()) * 100);
 }
 
+function toTimePercent(ms) {
+  return Math.min(100, (ms / (holdThreshold * TRACK_RANGE_RATIO)) * 100);
+}
+
 function renderTrack() {
   elements.lineLabel.textContent = `${threshold}px`;
   elements.line.style.left = `${toPercent(threshold)}%`;
   elements.scaleMax.textContent = `${trackRange()}px`;
+  elements.lineTimeLabel.textContent = `${holdThreshold}ms`;
+  elements.lineTime.style.left = "50%";
+  elements.scaleTimeMax.textContent = `${holdThreshold * TRACK_RANGE_RATIO}ms`;
   renderMarks();
 }
 
@@ -130,6 +145,7 @@ function renderTrack() {
 function renderLive(state) {
   if (!state) {
     elements.fill.style.width = "0%";
+    elements.fillTime.style.width = "0%";
     elements.phase.textContent = "";
     elements.phase.className = "phase";
     return;
@@ -144,7 +160,12 @@ function renderLive(state) {
     ? "momentum"
     : controller.wheelPhase.settling ? "settling" : "finger";
 
+  const heldMs = controller.fingerStartedAt === null
+    ? 0
+    : controller.lastFingerAt - controller.fingerStartedAt;
+
   elements.fill.style.width = `${toPercent(pulled)}%`;
+  elements.fillTime.style.width = `${toTimePercent(heldMs)}%`;
   elements.direction.textContent =
     state.direction === "forward" ? "앞으로 가는 방향" : "뒤로 가는 방향";
   elements.phase.textContent = held > 0
@@ -153,11 +174,11 @@ function renderLive(state) {
   elements.phase.className = `phase ${phase}`;
   elements.pulled.textContent = `${Math.round(pulled)}px`;
   elements.travel.textContent = `${Math.round(controller.log.fingerTravel)}px`;
-  elements.time.textContent =
-    `${Math.round(controller.log.lastFingerAt - controller.log.startedAt)}ms`;
+  elements.time.textContent = `${Math.round(heldMs)}ms`;
   elements.speed.textContent = `${controller.log.peakSpeed.toFixed(2)}px/ms`;
   elements.counts.textContent = formatCounts(controller.log.counts);
   elements.lag.textContent = "-";
+  elements.reason.textContent = "-";
 }
 
 function formatCounts(counts) {
@@ -171,10 +192,11 @@ function addAttempt(entry) {
   elements.engine.textContent = entry.engine;
   elements.pulled.textContent = `${entry.pulled}px`;
   elements.travel.textContent = `${entry.fingerTravel}px`;
-  elements.time.textContent = `${entry.pullMs}ms`;
+  elements.time.textContent = `${entry.heldMs}ms`;
   elements.speed.textContent = `${entry.peakSpeed}px/ms`;
   elements.counts.textContent = formatCounts(entry.counts);
   elements.lag.textContent = `${entry.decisionLagMs}ms`;
+  elements.reason.textContent = RELEASE_LABELS[entry.release] ?? entry.release;
 
   renderMarks();
   renderAttempts();
@@ -213,7 +235,7 @@ function renderAttempts() {
       detail.textContent =
         `${entry.direction === "forward" ? "앞으로" : "뒤로"}` +
         ` · ${entry.pulled}/${entry.threshold}px` +
-        ` · ${entry.pullMs}ms · ${entry.peakSpeed}px/ms` +
+        ` · ${entry.heldMs}/${entry.holdThreshold}ms · ${entry.peakSpeed}px/ms` +
         ` · ${RELEASE_LABELS[entry.release] ?? entry.release}` +
         ` · ${formatCounts(entry.counts)}`;
 

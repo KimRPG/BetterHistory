@@ -16,6 +16,7 @@
   };
   const RELEASE_LABELS = {
     threshold: "기준 거리 도달 (당기는 중 바로)",
+    hold: "기준 시간 도달 (당기는 중 바로)",
     momentum: "관성 시작 = 손 뗌",
     idle: "입력이 멈춤"
   };
@@ -31,6 +32,7 @@
       this.active = false;
       this.direction = null;
       this.threshold = 0;
+      this.holdThreshold = 0;
       this.engine = "";
       this.startedAt = 0;
       this.lastFingerAt = 0;
@@ -42,13 +44,14 @@
       this.samples = [];
     }
 
-    start({ direction, threshold, at, nativeMomentum }) {
+    start({ direction, threshold, holdThreshold, at, nativeMomentum }) {
       if (!this.enabled || this.active) return;
 
       this.reset();
       this.active = true;
       this.direction = direction;
       this.threshold = threshold;
+      this.holdThreshold = holdThreshold;
       this.engine = nativeMomentum ? "WheelEvent.momentum" : "감쇠 추정";
       this.startedAt = at;
       this.lastFingerAt = at;
@@ -78,7 +81,7 @@
       }
     }
 
-    finish({ action, release, pulled, at }) {
+    finish({ action, release, pulled, heldMs, at }) {
       if (!this.active) return null;
 
       const decidedAt = at ?? this.lastAt;
@@ -88,6 +91,8 @@
         direction: this.direction,
         pulled: Math.round(pulled),
         threshold: this.threshold,
+        heldMs: Math.round(heldMs ?? 0),
+        holdThreshold: this.holdThreshold,
         pullMs: Math.round(this.lastFingerAt - this.startedAt),
         fingerTravel: Math.round(this.fingerTravel),
         momentumTravel: Math.round(this.momentumTravel),
@@ -117,7 +122,8 @@
       방향: entry.direction === "forward" ? "앞으로" : "뒤로",
       진행거리: `${entry.pulled}px / ${entry.threshold}px` +
         ` (${Math.round((entry.pulled / entry.threshold) * 100)}%)`,
-      당긴시간: `${entry.pullMs}ms`,
+      당긴시간: `${entry.heldMs}ms / ${entry.holdThreshold}ms` +
+        ` (${Math.round((entry.heldMs / entry.holdThreshold) * 100)}%)`,
       손가락이동: `${entry.fingerTravel}px`,
       최고속도: `${entry.peakSpeed}px/ms`,
       손뗌판정: RELEASE_LABELS[entry.release] ?? entry.release,

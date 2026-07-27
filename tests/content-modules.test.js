@@ -176,9 +176,13 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
       enabled: false,
       gestureDirection: "left",
       pullDistancePx: 100,
+      pullHoldMs: 250,
       debugLogging: false
     }
   );
+  // 기준 시간은 저장하지 않고 선택한 거리에서 함께 끌어옵니다.
+  assert.equal(sanitizeSettings({ pullDistancePx: 220 }).pullHoldMs, 500);
+  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullHoldMs, 350);
   assert.equal(sanitizeSettings({ debugLogging: true }).debugLogging, true);
   assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 150);
   // 예전 값(180px)은 더 이상 선택지가 아니므로 기본값으로 되돌아갑니다.
@@ -729,13 +733,15 @@ test("디버그 로그를 켜면 당긴 거리와 시간을 콘솔에 남긴다"
   assert.equal(logged[0].pulled, 80);
   assert.equal(logged[0].threshold, 150);
   assert.equal(logged[0].pullMs, 48);
+  assert.equal(logged[0].heldMs, 48);
+  assert.equal(logged[0].holdThreshold, 350);
   assert.deepEqual([...logged[0].samples], [20, 20, 20, 20]);
 
   // 콘솔에는 사람이 읽는 형태로 나갑니다.
   const summary = runtime.namespace.toGestureSummary(logged[0]);
   assert.equal(summary.동작, "한 단계 이동");
   assert.equal(summary.진행거리, "80px / 150px (53%)");
-  assert.equal(summary.당긴시간, "48ms");
+  assert.equal(summary.당긴시간, "48ms / 350ms (14%)");
   assert.equal(summary.손뗌판정, "입력이 멈춤");
 
   // 페이지가 이동해도 남도록 서비스 워커로 보냅니다.

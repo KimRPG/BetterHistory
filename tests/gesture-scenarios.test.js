@@ -352,3 +352,55 @@ test("실제 트랙패드 당김의 이동 거리를 대부분 반영한다", ()
   const estimated = replayRealPull(false);
   assert.equal(estimated.pulled >= 100, true, `추정 모드에서 ${estimated.pulled}px만 반영됨`);
 });
+
+// 화면 녹화에서 확인한 실제 사용 습관입니다. 아주 천천히(0.45~0.58px/ms) 오래
+// 당기는 분이라, 거리만 기준으로 삼으면 150px을 채우는 데 1초가 넘게 걸렸고
+// 그 사이 잠깐 멈칫하면 "입력 멈춤"으로 끊겨 한 단계 이동이 돼 버렸습니다.
+function slowPull(harness, { totalMs, speed }) {
+  const steps = Math.round(totalMs / FRAME);
+  for (let step = 0; step < steps; step += 1) {
+    harness.wheel(-speed * FRAME, 0, false);
+    harness.advance(FRAME);
+  }
+}
+
+test("천천히 오래 당기면 거리가 모자라도 메뉴가 열린다", () => {
+  const harness = createController();
+
+  // 0.5px/ms로 400ms = 200px지만, 실제로는 감속·보류로 훨씬 적게 잡힙니다.
+  slowPull(harness, { totalMs: 400, speed: 0.5 });
+  harness.advance(1200);
+
+  assert.deepEqual([...harness.opened], ["back"]);
+});
+
+test("빠르게 튕기는 짧은 제스처는 시간 기준에 걸리지 않는다", () => {
+  for (const totalMs of [44, 117, 214]) {
+    const harness = createController();
+
+    slowPull(harness, { totalMs, speed: 0.5 });
+    harness.advance(1200);
+
+    assert.deepEqual([...harness.opened], [], `${totalMs}ms 제스처`);
+    assert.equal(harness.outcome(), "back", `${totalMs}ms 제스처`);
+  }
+});
+
+test("기준 시간은 손가락 구간만 세고 관성 꼬리는 빼놓는다", () => {
+  const harness = createController();
+
+  // 손가락은 120ms만 움직이고, 관성이 1초 넘게 이어집니다.
+  slowPull(harness, { totalMs: 120, speed: 0.6 });
+  let magnitude = 5;
+  for (let step = 0; step < 120; step += 1) {
+    magnitude *= 0.97;
+    if (magnitude < 0.5) break;
+    harness.wheel(-magnitude, 0, true);
+    harness.advance(FRAME);
+  }
+  harness.advance(1200);
+
+  // 관성이 아무리 길어도 "오래 당겼다"가 되면 안 됩니다.
+  assert.deepEqual([...harness.opened], []);
+  assert.equal(harness.outcome(), "back");
+});

@@ -35,6 +35,8 @@
       this.pullDistance = 0;
       this.pendingPull = [];
       this.lastWheelAt = null;
+      this.fingerStartedAt = null;
+      this.lastFingerAt = 0;
       this.sawFingerInput = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
       this.log = new namespace.GestureLog((entry) => {
@@ -174,10 +176,18 @@
       this.log.start({
         direction,
         threshold: this.settings.pullDistancePx,
+        holdThreshold: this.settings.pullHoldMs,
         at: event.timeStamp,
         nativeMomentum: typeof event.momentum === "boolean"
       });
       this.log.record({ phase, magnitude: absoluteX, at: event.timeStamp });
+
+      if (phase !== "momentum") {
+        // 손가락이 실제로 닿아 있던 구간만 시간으로 셉니다. 관성 꼬리는
+        // 여기 들어오지 않으므로 "오래 당겼다"가 부풀지 않습니다.
+        if (this.fingerStartedAt === null) this.fingerStartedAt = event.timeStamp;
+        this.lastFingerAt = event.timeStamp;
+      }
 
       if (phase === "finger") {
         this.sawFingerInput = true;
@@ -198,18 +208,29 @@
       }
 
       const pulled = Math.abs(this.pullDistance);
+      const heldMs = this.fingerStartedAt === null
+        ? 0
+        : this.lastFingerAt - this.fingerStartedAt;
+      const reachedDistance = pulled >= this.settings.pullDistancePx;
+      const reachedHold = heldMs >= this.settings.pullHoldMs;
+
       this.menu.showGestureIndicator({
         clientY: event.clientY,
-        progress: pulled / this.settings.pullDistancePx,
+        progress: Math.max(
+          pulled / this.settings.pullDistancePx,
+          heldMs / this.settings.pullHoldMs
+        ),
         direction,
         shift: clamp(this.pullDistance * GESTURE_SHIFT_SCALE, GESTURE_SHIFT_MAX)
       });
 
-      if (pulled >= this.settings.pullDistancePx) {
+      // 멀리 당기거나 오래 당기거나, 둘 중 하나만 넘으면 메뉴입니다.
+      if (reachedDistance || reachedHold) {
         this.log.finish({
           action: "menu",
-          release: "threshold",
+          release: reachedDistance ? "threshold" : "hold",
           pulled,
+          heldMs,
           at: event.timeStamp
         });
         this.finishGesture(() => this.openHistoryMenu(direction));
@@ -223,6 +244,7 @@
           action: "navigate",
           release: "momentum",
           pulled,
+          heldMs,
           at: event.timeStamp
         });
         this.finishGesture(() => this.navigateOneStep(direction));
@@ -273,7 +295,14 @@
       const direction = this.gestureDirection;
       const pulled = Math.abs(this.pullDistance);
       const shouldNavigate = !this.gestureTriggered && direction !== null;
-      this.log.finish({ action: "navigate", release: "idle", pulled });
+      this.log.finish({
+        action: "navigate",
+        release: "idle",
+        pulled,
+        heldMs: this.fingerStartedAt === null
+          ? 0
+          : this.lastFingerAt - this.fingerStartedAt
+      });
       this.endGestureCapture();
 
       if (shouldNavigate) void this.navigateOneStep(direction);
@@ -415,6 +444,8 @@
       this.pullDistance = 0;
       this.pendingPull = [];
       this.lastWheelAt = null;
+      this.fingerStartedAt = null;
+      this.lastFingerAt = 0;
       this.sawFingerInput = false;
       this.wheelPhase.reset();
       this.log.reset();
