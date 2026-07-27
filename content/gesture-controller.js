@@ -17,8 +17,12 @@
   // 세게 튕기면 손가락도 실제로 멀리 움직이기 때문에, 거리만 보면 오래 당긴
   // 것과 구분되지 않습니다. 진행 속도에 상한을 둬서 "빨리 튕겨 거리를 버는"
   // 경우를 막습니다. 기준 거리는 결국 최소 지속 시간으로도 작동합니다.
-  const MAX_PULL_SPEED = 1.4;
+  const MAX_PULL_SPEED = 2;
   const MAX_STEP_MS = 50;
+  // 관성 확정에는 길어야 몇 이벤트면 충분합니다. 그보다 오래 붙잡아 둔 거리는
+  // 관성이었다면 이미 확정됐을 테니 손가락 입력으로 인정합니다. 무한정 쌓아
+  // 두면 잠깐씩 느려지는 정상적인 당김의 절반이 통째로 버려집니다.
+  const SETTLING_WINDOW_EVENTS = 6;
   const DEFAULT_STEP_MS = 16;
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
@@ -31,7 +35,7 @@
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
       this.pullDistance = 0;
-      this.settlingDistance = 0;
+      this.pendingPull = [];
       this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
@@ -179,14 +183,16 @@
 
       if (phase === "finger") {
         this.sawFingerInput = true;
-        this.pullDistance += this.settlingDistance + fingerDelta;
-        this.settlingDistance = 0;
+        this.pullDistance += this.drainPendingPull() + fingerDelta;
       } else if (phase === "settling") {
-        // 느려지기 시작했지만 손을 뗀 것인지는 아직 모릅니다. 관성으로 확정되면
-        // 버리고, 다시 빨라지면 그때 합칩니다.
-        this.settlingDistance += fingerDelta;
+        // 느려지기 시작했지만 손을 뗀 것인지는 아직 모릅니다. 최근 몇 이벤트만
+        // 붙잡아 두고, 그보다 오래된 것은 손가락 입력으로 확정합니다.
+        this.pendingPull.push(fingerDelta);
+        while (this.pendingPull.length > SETTLING_WINDOW_EVENTS) {
+          this.pullDistance += this.pendingPull.shift();
+        }
       } else {
-        this.settlingDistance = 0;
+        this.pendingPull.length = 0;
         if (!this.sawFingerInput) {
           // 직전 스크롤이 남긴 관성입니다. 이 제스처의 것이 아닙니다.
           return;
@@ -239,6 +245,12 @@
       this.restartIdleTimer(() => this.endGestureCapture());
       this.menu.hideGestureIndicator();
       void action();
+    }
+
+    drainPendingPull() {
+      const total = this.pendingPull.reduce((sum, value) => sum + value, 0);
+      this.pendingPull.length = 0;
+      return total;
     }
 
     // 한 이벤트가 기여할 수 있는 거리를 경과 시간에 비례해 제한합니다.
@@ -410,7 +422,7 @@
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.pullDistance = 0;
-      this.settlingDistance = 0;
+      this.pendingPull = [];
       this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase.reset();

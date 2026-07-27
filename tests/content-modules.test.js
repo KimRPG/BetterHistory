@@ -157,7 +157,7 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
 
   assert.deepEqual(
     [...PULL_DISTANCE_CHOICES].map(({ value }) => value),
-    [120, 180, 260]
+    [100, 150, 220]
   );
   assert.equal(popupHtml.includes('src="shared/settings.js"'), true);
   // 기준 거리 목록은 공유 정의에서만 만들고 마크업에 복제하지 않습니다.
@@ -170,17 +170,19 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
     JSON.parse(JSON.stringify(sanitizeSettings({
       enabled: false,
       gestureDirection: "left",
-      pullDistancePx: "120"
+      pullDistancePx: "100"
     }))),
     {
       enabled: false,
       gestureDirection: "left",
-      pullDistancePx: 120,
+      pullDistancePx: 100,
       debugLogging: false
     }
   );
   assert.equal(sanitizeSettings({ debugLogging: true }).debugLogging, true);
-  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 180);
+  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 150);
+  // 예전 값(180px)은 더 이상 선택지가 아니므로 기본값으로 되돌아갑니다.
+  assert.equal(sanitizeSettings({ pullDistancePx: 180 }).pullDistancePx, 150);
 });
 
 test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {
@@ -251,13 +253,13 @@ test("기준 거리를 넘게 당기면 손을 떼기 전에 메뉴가 열린다
     }
   });
 
-  // 기본 기준은 180px입니다. 8번(160px)까지는 아직 열리지 않아야 합니다.
-  for (let index = 0; index < 8; index += 1) {
+  // 기본 기준은 150px입니다. 7번(140px)까지는 아직 열리지 않아야 합니다.
+  for (let index = 0; index < 7; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
   assert.deepEqual(openedDirections, []);
 
-  controller.handleWheel(createFingerEvent(8 * 16));
+  controller.handleWheel(createFingerEvent(7 * 16));
   assert.deepEqual(openedDirections, ["back"]);
   controller.endGestureCapture();
 });
@@ -293,19 +295,19 @@ test("설정한 기준 거리를 따른다", () => {
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
 
-  controller.settings.pullDistancePx = 120;
+  controller.settings.pullDistancePx = 100;
   controller.menu = createGestureMenuStub({
     open: (direction) => {
       openedDirections.push(direction);
       return Promise.resolve(true);
     }
   });
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 4; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
   assert.deepEqual(openedDirections, []);
 
-  controller.handleWheel(createFingerEvent(5 * 16));
+  controller.handleWheel(createFingerEvent(4 * 16));
   assert.deepEqual(openedDirections, ["back"]);
   controller.endGestureCapture();
 });
@@ -679,14 +681,14 @@ test("디버그 로그를 켜면 당긴 거리와 시간을 콘솔에 남긴다"
   assert.equal(logged[0].release, "idle");
   assert.equal(logged[0].direction, "back");
   assert.equal(logged[0].pulled, 80);
-  assert.equal(logged[0].threshold, 180);
+  assert.equal(logged[0].threshold, 150);
   assert.equal(logged[0].pullMs, 48);
   assert.deepEqual([...logged[0].samples], [20, 20, 20, 20]);
 
   // 콘솔에는 사람이 읽는 형태로 나갑니다.
   const summary = runtime.namespace.toGestureSummary(logged[0]);
   assert.equal(summary.동작, "한 단계 이동");
-  assert.equal(summary.진행거리, "80px / 180px (44%)");
+  assert.equal(summary.진행거리, "80px / 150px (53%)");
   assert.equal(summary.당긴시간, "48ms");
   assert.equal(summary.손뗌판정, "입력이 멈춤");
 

@@ -187,7 +187,7 @@ const scenarios = [
   ["세게 튕기기", "back", { fingerSteps: 6, peak: 60, decay: 0.95, interval: 8.3 }],
   ["아주 세게 튕기기", "back", { fingerSteps: 7, peak: 90, decay: 0.96, interval: 8.3 }],
   ["60Hz 트랙패드로 튕기기", "back", { fingerSteps: 4, peak: 40, decay: 0.9, interval: 16.6 }],
-  ["기준에 못 미치게 당기기", "back", { fingerSteps: 24, peak: 14, decay: 0.9, interval: 8.3 }],
+  ["기준에 못 미치게 당기기", "back", { fingerSteps: 14, peak: 12, decay: 0.9, interval: 8.3 }],
   ["길게 당기기", "menu", { fingerSteps: 28, peak: 18, decay: 0.9, interval: 8.3 }],
   ["아주 길게 당기기", "menu", { fingerSteps: 40, peak: 16, decay: 0.9, interval: 8.3 }],
   ["살짝 스치기", "none", { fingerSteps: 2, peak: 8, decay: 0.85, interval: 8.3 }]
@@ -316,4 +316,36 @@ test("메뉴가 열린 뒤 위·아래로 움직이면 선택이 움직이고 �
 
   assert.equal(harness.selectionMoves.length > 0, true);
   assert.equal(harness.entryNavigations.length, 1);
+});
+
+// 실제 사용자 로그에서 가져온 입력입니다. 손가락이 166px 움직였는데 예전에는
+// 절반 가까이가 "관성 후보"로 붙잡혔다가 버려져 80px만 반영됐습니다.
+const REAL_TRACKPAD_PULL = [1, 3, 4, 2, 5, 8, 11, 15, 14, 17, 17, 13, 11, 14, 13, 11, 7];
+
+function replayRealPull(nativeMomentum) {
+  const harness = createController();
+  const step = 125 / (REAL_TRACKPAD_PULL.length - 1);
+
+  for (const magnitude of REAL_TRACKPAD_PULL) {
+    harness.wheel(-magnitude, 0, nativeMomentum ? false : undefined);
+    harness.advance(step);
+  }
+  return {
+    harness,
+    pulled: Math.round(Math.abs(harness.controller.pullDistance))
+  };
+}
+
+test("실제 트랙패드 당김의 이동 거리를 대부분 반영한다", () => {
+  const travel = REAL_TRACKPAD_PULL.reduce((sum, value) => sum + value, 0);
+  assert.equal(travel, 166);
+
+  // WheelEvent.momentum이 있으면 추정이 필요 없어 거의 그대로 반영됩니다.
+  const exact = replayRealPull(true);
+  assert.equal(exact.pulled >= 150, true, `정확 모드에서 ${exact.pulled}px만 반영됨`);
+  assert.deepEqual([...exact.harness.opened], ["back"]);
+
+  // 추정 모드에서도 예전(80px)보다는 훨씬 많이 반영돼야 합니다.
+  const estimated = replayRealPull(false);
+  assert.equal(estimated.pulled >= 100, true, `추정 모드에서 ${estimated.pulled}px만 반영됨`);
 });

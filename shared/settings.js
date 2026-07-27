@@ -6,7 +6,7 @@
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     gestureDirection: "right",
-    pullDistancePx: 180,
+    pullDistancePx: 150,
     debugLogging: false
   });
 
@@ -14,9 +14,9 @@
   // 손가락이 실제로 움직인 거리로 두 동작을 구분합니다. 이 거리를 넘기면
   // 기록 메뉴가 열리고, 그 전에 놓으면 한 단계만 이동합니다.
   const PULL_DISTANCE_CHOICES = Object.freeze([
-    Object.freeze({ value: 120, label: "짧게 · 살짝만 당겨도 열림" }),
-    Object.freeze({ value: 180, label: "보통" }),
-    Object.freeze({ value: 260, label: "길게 · 확실히 당겨야 열림" })
+    Object.freeze({ value: 100, label: "짧게 · 살짝만 당겨도 열림" }),
+    Object.freeze({ value: 150, label: "보통" }),
+    Object.freeze({ value: 220, label: "길게 · 확실히 당겨야 열림" })
   ]);
 
   function findPullDistance(value) {

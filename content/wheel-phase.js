@@ -15,13 +15,10 @@
   const SAMPLES_TO_CONFIRM = 3;
   const DECAY_MIN = 0.6;
   const DECAY_MAX = 0.96;
-  // 조금이라도 느려지기 시작하면 곧바로 "잦아드는 중"으로 보고, 확정될 때까지
-  // 이동 거리를 보류시킵니다. 확정을 기다리는 사이에 관성이 거리에 섞이면
-  // 짧게 튕긴 제스처가 기준을 넘어 버립니다.
-  const SETTLING_MAX = 0.99;
-  // 표본 두 개를 모으기 전에도 값이 줄기 시작하면 곧바로 보류에 들어갑니다.
-  // 보류는 거리를 버리는 게 아니라 붙잡아 두는 것뿐이라, 일찍 잡아도 손해가 없습니다.
-  const SETTLING_HINT_EVENTS = 1;
+  // 표본을 다 모으기 전에도 값이 연속으로 줄면 보류에 들어갑니다. 사람 손은
+  // 평지 구간에서도 미세하게 흔들리므로, 한 번 줄었다고 보류하면 정상적인
+  // 당김의 절반이 관성 후보가 되어 버립니다.
+  const SETTLING_HINT_EVENTS = 2;
   const RESUME_DELTA_RATIO = 2;
   const RESUME_DELTA_MIN = 2;
 
@@ -83,9 +80,9 @@
       if (factor !== null) {
         const steady = factor === 0 || (factor >= DECAY_MIN && factor <= DECAY_MAX);
         this.decayRun = steady ? this.decayRun + 1 : 0;
-        this.settling = factor === 0 ||
-          factor <= SETTLING_MAX ||
-          this.fallingRun >= SETTLING_HINT_EVENTS;
+        // 실제 관성 감쇠율일 때만 보류합니다. 사람의 평지 흔들림(비율 1 근처)은
+        // 여기 걸리지 않아야 당긴 거리가 온전히 반영됩니다.
+        this.settling = steady || this.fallingRun >= SETTLING_HINT_EVENTS;
 
         if (this.decayRun >= SAMPLES_TO_CONFIRM) {
           this.momentum = true;
