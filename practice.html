@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GestureBackHistory 제스처 연습</title>
+    <link rel="stylesheet" href="practice.css">
+  </head>
+  <body>
+    <main>
+      <header class="head">
+        <div>
+          <h1>제스처 연습</h1>
+          <p>여기서는 페이지가 실제로 이동하지 않습니다. 판정만 그대로 돌아갑니다.</p>
+        </div>
+        <div class="engine">
+          <span class="engine-label">관성 판정</span>
+          <strong id="engine">확인 중…</strong>
+        </div>
+      </header>
+
+      <section class="stage">
+        <div class="stage-head">
+          <span id="direction-label">두 손가락으로 좌우로 당겨 보세요</span>
+          <span id="live-phase" class="phase"></span>
+        </div>
+
+        <div class="track" id="track">
+          <div class="zone zone-step"><span>한 단계 이동</span></div>
+          <div class="zone zone-menu"><span>기록 메뉴</span></div>
+          <div class="fill" id="fill"></div>
+          <div class="line" id="line"><span id="line-label">150px</span></div>
+          <div class="marks" id="marks"></div>
+        </div>
+
+        <div class="scale">
+          <span>0</span>
+          <span id="scale-max">300px</span>
+        </div>
+
+        <dl class="readout">
+          <div><dt>진행</dt><dd id="v-pulled">0px</dd></div>
+          <div><dt>손가락 이동</dt><dd id="v-travel">0px</dd></div>
+          <div><dt>당긴 시간</dt><dd id="v-time">0ms</dd></div>
+          <div><dt>최고 속도</dt><dd id="v-speed">0px/ms</dd></div>
+          <div><dt>이벤트</dt><dd id="v-counts">-</dd></div>
+          <div><dt>판정 지연</dt><dd id="v-lag">-</dd></div>
+        </dl>
+      </section>
+
+      <section class="controls">
+        <label for="threshold">
+          <strong>기록 메뉴 열기 기준</strong>
+          <span>바꾸면 확장 설정에도 바로 반영됩니다.</span>
+        </label>
+        <select id="threshold"></select>
+        <button id="reset" type="button">기록 지우기</button>
+      </section>
+
+      <section class="attempts">
+        <h2>최근 시도</h2>
+        <ol id="attempts"><li class="empty">아직 시도가 없습니다.</li></ol>
+      </section>
+    </main>
+
+    <!-- 실제 제스처 판정 코드를 그대로 씁니다. 연습 결과가 실제와 어긋나면
+         안 되므로 별도 구현을 두지 않습니다. -->
+    <script src="shared/settings.js"></script>
+    <script src="content/menu-styles.js"></script>
+    <script src="content/wheel-phase.js"></script>
+    <script src="content/gesture-log.js"></script>
+    <script src="content/history-menu.js"></script>
+    <script src="content/gesture-controller.js"></script>
+    <script src="practice.js"></script>
+  </body>
+</html>

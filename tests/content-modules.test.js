@@ -185,6 +185,49 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   assert.equal(sanitizeSettings({ pullDistancePx: 180 }).pullDistancePx, 150);
 });
 
+for (const [script, markup] of [
+  ["popup.js", "popup.html"],
+  ["practice.js", "practice.html"]
+]) {
+  test(`${script}가 찾는 요소가 ${markup}에 모두 있다`, () => {
+    const source = fs.readFileSync(path.join(__dirname, "..", script), "utf8");
+    const html = fs.readFileSync(path.join(__dirname, "..", markup), "utf8");
+    const ids = [...source.matchAll(/querySelector\("#([\w-]+)"\)/g)]
+      .map(([, id]) => id);
+
+    assert.equal(ids.length > 0, true);
+    for (const id of ids) {
+      assert.equal(html.includes(`id="${id}"`), true, `#${id}가 없습니다`);
+    }
+  });
+}
+
+test("연습 페이지는 실제 판정 코드를 그대로 불러온다", () => {
+  const practiceHtml = fs.readFileSync(
+    path.join(__dirname, "..", "practice.html"),
+    "utf8"
+  );
+  const loaded = [...practiceHtml.matchAll(/<script src="([^"]+)"><\/script>/g)]
+    .map(([, src]) => src);
+
+  // 연습 결과가 실제 동작과 어긋나면 안 되므로 판정 모듈을 복제하지 않고
+  // 콘텐츠 스크립트를 그대로 씁니다.
+  for (const file of ["shared/settings.js", "content/wheel-phase.js", "content/gesture-log.js", "content/gesture-controller.js"]) {
+    assert.equal(loaded.includes(file), true, `${file}을 불러오지 않습니다`);
+  }
+  // index.js를 부르면 컨트롤러가 두 개 생깁니다.
+  assert.equal(loaded.includes("content/index.js"), false);
+  assert.equal(loaded.at(-1), "practice.js");
+
+  for (const file of loaded) {
+    assert.equal(
+      fs.existsSync(path.join(__dirname, "..", file)),
+      true,
+      `${file}이 없습니다`
+    );
+  }
+});
+
 test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {
   const runtime = loadContentModules();
   const favicon = new URL(

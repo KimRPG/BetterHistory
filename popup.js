@@ -54,6 +54,9 @@ debugLoggingInput.addEventListener("change", async () => {
   await refreshLogs();
 });
 
+document.querySelector("#open-practice").addEventListener("click", () => {
+  void chrome.tabs.create({ url: chrome.runtime.getURL("practice.html") });
+});
 document.querySelector("#copy-logs").addEventListener("click", copyLogs);
 document.querySelector("#clear-logs").addEventListener("click", clearLogs);
 
