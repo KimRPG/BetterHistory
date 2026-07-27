@@ -239,14 +239,21 @@ function pull(harness, steps, magnitude = 12) {
 }
 
 test("당기다 잠깐 쉬어도 제스처가 끊기지 않는다", () => {
-  for (const pauseMs of [120, 250, 400]) {
+  // 이미 상당히 당겨 둔 상태라면 1초 넘게 멈칫해도 이어집니다.
+  for (const pauseMs of [120, 250, 400, 700, 1100]) {
     const harness = createController();
     pull(harness, 10);
     harness.advance(pauseMs);
     pull(harness, 14);
-    harness.advance(1200);
+    harness.advance(1500);
 
-    assert.equal(harness.outcome(), "menu", `${pauseMs}ms 쉬었을 때`);
+    // 끊겼다면 멈칫한 시점에 뒤로가기가 한 번 실행됐을 것입니다.
+    assert.deepEqual(
+      [...harness.messages].map((message) => message.type),
+      [],
+      `${pauseMs}ms 쉬었을 때 뒤로가기가 끼어들었습니다`
+    );
+    assert.deepEqual([...harness.opened], ["back"], `${pauseMs}ms 쉬었을 때`);
   }
 });
 
@@ -403,4 +410,29 @@ test("기준 시간은 손가락 구간만 세고 관성 꼬리는 빼놓는다"
   // 관성이 아무리 길어도 "오래 당겼다"가 되면 안 됩니다.
   assert.deepEqual([...harness.opened], []);
   assert.equal(harness.outcome(), "back");
+});
+
+test("이제 막 시작한 작은 제스처는 오래 기다리지 않는다", () => {
+  const harness = createController();
+
+  // 진행이 얼마 안 된 상태에서 조용해지면 곧바로 정리해야 반응이 굼뜨지 않습니다.
+  harness.wheel(-6, 0, false);
+  harness.advance(FRAME);
+  harness.advance(500);
+
+  assert.equal(harness.outcome(), "back");
+});
+
+test("멈칫한 시간도 당긴 시간에 포함돼 다시 움직이면 메뉴가 열린다", () => {
+  const harness = createController();
+
+  // 200ms 당기고 → 600ms 멈칫 → 다시 움직이는 순간 기준 시간(350ms)을 넘습니다.
+  pull(harness, 24, 5);
+  assert.deepEqual([...harness.opened], []);
+
+  harness.advance(600);
+  pull(harness, 2, 5);
+  harness.advance(1500);
+
+  assert.deepEqual([...harness.opened], ["back"]);
 });

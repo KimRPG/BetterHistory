@@ -5,10 +5,13 @@
   const { DEFAULT_SETTINGS, sanitizeSettings } = namespace;
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_IDLE_MS = 190;
-  // 관성이 없는 느린 릴리스는 입력이 끊긴 것으로만 알 수 있습니다. 그런데 당기다
-  // 잠깐 쉬는 것도 똑같이 보이므로, 튕김을 관성으로 즉시 잡게 된 지금은 이쪽을
-  // 넉넉히 기다려 주는 편이 낫습니다. 그래야 당기는 도중에 끊기지 않습니다.
+  // 손을 뗐다는 확실한 신호는 관성뿐입니다. 관성 없이 입력만 끊긴 것은 "천천히
+  // 놓았다"와 "아직 대고 있다"를 구분할 수 없으므로 기다리는 수밖에 없습니다.
+  // 이미 상당히 당겨 둔 제스처라면 이어질 가능성이 높으니 오래 참고, 이제 막
+  // 시작한 작은 제스처는 빨리 정리해 반응이 굼떠지지 않게 합니다.
   const GESTURE_RELEASE_MS = 450;
+  const GESTURE_PAUSE_MS = 1200;
+  const PATIENT_PROGRESS = 0.4;
   const MENU_SELECTION_RELEASE_MS = 300;
   const GESTURE_SHIFT_SCALE = 0.42;
   const GESTURE_SHIFT_MAX = 40;
@@ -251,9 +254,13 @@
         return;
       }
 
+      const progress = Math.max(
+        pulled / this.settings.pullDistancePx,
+        heldMs / this.settings.pullHoldMs
+      );
       this.restartIdleTimer(
         () => this.finishShortGesture(),
-        GESTURE_RELEASE_MS
+        progress >= PATIENT_PROGRESS ? GESTURE_PAUSE_MS : GESTURE_RELEASE_MS
       );
     }
 
