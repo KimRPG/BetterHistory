@@ -35,7 +35,9 @@
       this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
-      this.log = new namespace.GestureLog();
+      this.log = new namespace.GestureLog((entry) => {
+        void namespace.historyClient.logGesture(entry);
+      });
       this.scrollAreaCache = null;
       this.menuSelectionDistance = 0;
       this.menuSelectionUsed = false;

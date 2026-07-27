@@ -17,7 +17,24 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
   const calls = [];
   const attachedTabs = new Set();
 
+  const session = new Map();
   const chrome = {
+    storage: {
+      session: {
+        async get(defaults) {
+          const result = { ...defaults };
+          for (const key of Object.keys(defaults)) {
+            if (session.has(key)) result[key] = session.get(key);
+          }
+          return result;
+        },
+        async set(values) {
+          for (const [key, value] of Object.entries(values)) {
+            session.set(key, value);
+          }
+        }
+      }
+    },
     runtime: {
       id: "test-extension-id",
       onMessage: {
@@ -69,6 +86,7 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
   return {
     calls,
     context,
+    session,
     getMessageListener: () => messageListener,
     getDetachListener: () => detachListener
   };
@@ -380,4 +398,52 @@ test("한 항목이 걸러져도 개수 제한은 남은 항목 기준으로 적
   const history = await runtime.context.getTabHistory(7);
   assert.equal(history.length, 20);
   assert.equal(history.some((entry) => entry.url === ""), false);
+});
+
+test("제스처 로그는 세션 저장소에 쌓아 페이지 이동 뒤에도 남긴다", async () => {
+  const runtime = loadWorker(sampleHistory);
+  const listener = runtime.getMessageListener();
+  const responses = [];
+
+  for (const pulled of [40, 80]) {
+    listener(
+      { type: "LOG_GESTURE", entry: { action: "navigate", pulled } },
+      { id: "test-extension-id", tab: { id: 7 } },
+      (value) => responses.push(value)
+    );
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const logs = runtime.session.get("gestureLogs");
+  assert.equal(logs.length, 2);
+  assert.deepEqual([...logs].map((entry) => entry.pulled), [40, 80]);
+  assert.equal(logs[0].tabId, 7);
+  assert.equal(typeof logs[0].at, "string");
+  assert.deepEqual(JSON.parse(JSON.stringify(responses)), [
+    { ok: true },
+    { ok: true }
+  ]);
+});
+
+test("보관하는 제스처 로그 개수를 제한한다", async () => {
+  const runtime = loadWorker(sampleHistory);
+  const listener = runtime.getMessageListener();
+
+  for (let index = 0; index < 70; index += 1) {
+    listener(
+      { type: "LOG_GESTURE", entry: { action: "navigate", pulled: index } },
+      { id: "test-extension-id", tab: { id: 7 } },
+      () => {}
+    );
+  }
+  for (let tick = 0; tick < 80; tick += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  const logs = runtime.session.get("gestureLogs");
+  assert.equal(logs.length, 60);
+  // 오래된 것부터 밀려납니다.
+  assert.equal(logs[0].pulled, 10);
+  assert.equal(logs.at(-1).pulled, 69);
 });

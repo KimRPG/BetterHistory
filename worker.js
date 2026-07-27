@@ -2,6 +2,7 @@
 
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
+const MAX_GESTURE_LOGS = 60;
 const GENERIC_ERROR_MESSAGE =
   "히스토리를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 
@@ -15,6 +16,7 @@ class HistoryError extends Error {
 
 const attachedTabs = new Set();
 const tabQueues = new Map();
+let gestureLogQueue = Promise.resolve();
 
 chrome.debugger.onDetach.addListener((source) => {
   if (Number.isInteger(source?.tabId)) attachedTabs.delete(source.tabId);
@@ -43,6 +45,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "LOG_GESTURE") {
+    recordGestureLog(tabId, message.entry)
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
   if (message?.type === "NAVIGATE_HISTORY") {
     if (!Number.isInteger(message.entryId)) {
       sendResponse({ ok: false, error: "잘못된 히스토리 항목입니다." });
@@ -58,6 +67,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return undefined;
 });
+
+// 페이지가 이동하면 그 탭의 콘솔은 지워집니다. 서비스 워커 콘솔과 세션
+// 저장소에 남겨 두면 이동 뒤에도 기록이 남습니다.
+function recordGestureLog(tabId, entry) {
+  if (!entry || typeof entry !== "object") return Promise.resolve();
+
+  const record = { ...entry, tabId, at: new Date().toISOString() };
+  console.log("GestureBackHistory", record);
+
+  // 제스처가 연달아 들어와도 기록이 덮이지 않게 한 줄로 세워 씁니다.
+  gestureLogQueue = gestureLogQueue.then(
+    () => appendGestureLog(record),
+    () => appendGestureLog(record)
+  );
+  return gestureLogQueue;
+}
+
+async function appendGestureLog(record) {
+  const stored = await chrome.storage.session.get({ gestureLogs: [] });
+  const logs = Array.isArray(stored.gestureLogs) ? stored.gestureLogs : [];
+  await chrome.storage.session.set({
+    gestureLogs: [...logs, record].slice(-MAX_GESTURE_LOGS)
+  });
+}
 
 async function navigateOneStep(tabId, direction = "back") {
   try {

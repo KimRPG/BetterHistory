@@ -675,12 +675,25 @@ test("디버그 로그를 켜면 당긴 거리와 시간을 콘솔에 남긴다"
   controller.finishShortGesture();
 
   assert.equal(logged.length, 1);
-  assert.equal(logged[0].동작, "한 단계 이동");
-  assert.equal(logged[0].방향, "뒤로");
-  assert.equal(logged[0].진행거리, "80px / 180px (44%)");
-  assert.equal(logged[0].당긴시간, "48ms");
-  assert.equal(logged[0].손뗌판정, "입력이 멈춤");
-  assert.deepEqual([...logged[0].입력크기], [20, 20, 20, 20]);
+  assert.equal(logged[0].action, "navigate");
+  assert.equal(logged[0].release, "idle");
+  assert.equal(logged[0].direction, "back");
+  assert.equal(logged[0].pulled, 80);
+  assert.equal(logged[0].threshold, 180);
+  assert.equal(logged[0].pullMs, 48);
+  assert.deepEqual([...logged[0].samples], [20, 20, 20, 20]);
+
+  // 콘솔에는 사람이 읽는 형태로 나갑니다.
+  const summary = runtime.namespace.toGestureSummary(logged[0]);
+  assert.equal(summary.동작, "한 단계 이동");
+  assert.equal(summary.진행거리, "80px / 180px (44%)");
+  assert.equal(summary.당긴시간, "48ms");
+  assert.equal(summary.손뗌판정, "입력이 멈춤");
+
+  // 페이지가 이동해도 남도록 서비스 워커로 보냅니다.
+  const sent = runtime.messages.filter((m) => m.type === "LOG_GESTURE");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].entry.pulled, 80);
 });
 
 test("디버그 로그를 끄면 아무것도 기록하지 않는다", () => {
