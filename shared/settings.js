@@ -6,7 +6,8 @@
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     gestureDirection: "right",
-    pullDistancePx: 180
+    pullDistancePx: 180,
+    debugLogging: false
   });
 
   // 브라우저는 트랙패드에서 손가락을 뗀 순간을 알려 주지 않으므로, 시간 대신
@@ -28,7 +29,8 @@
       enabled: candidate?.enabled !== false,
       gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
       pullDistancePx: findPullDistance(candidate?.pullDistancePx)?.value
-        ?? DEFAULT_SETTINGS.pullDistancePx
+        ?? DEFAULT_SETTINGS.pullDistancePx,
+      debugLogging: candidate?.debugLogging === true
     };
   }
 

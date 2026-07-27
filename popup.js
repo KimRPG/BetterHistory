@@ -6,6 +6,7 @@ const { DEFAULT_SETTINGS, PULL_DISTANCE_CHOICES, sanitizeSettings } =
 const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
 const pullDistanceInput = document.querySelector("#pull-distance");
+const debugLoggingInput = document.querySelector("#debug-logging");
 const status = document.querySelector("#status");
 let statusTimer = null;
 
@@ -31,6 +32,7 @@ async function initialize() {
     enabledInput.checked = settings.enabled;
     directionInput.value = settings.gestureDirection;
     pullDistanceInput.value = String(settings.pullDistancePx);
+    debugLoggingInput.checked = settings.debugLogging;
   } catch (error) {
     showStatus(error instanceof Error ? error.message : String(error), true);
   }
@@ -39,6 +41,7 @@ async function initialize() {
 enabledInput.addEventListener("change", save);
 directionInput.addEventListener("change", save);
 pullDistanceInput.addEventListener("change", save);
+debugLoggingInput.addEventListener("change", save);
 
 async function save() {
   try {
@@ -46,7 +49,8 @@ async function save() {
       sanitizeSettings({
         enabled: enabledInput.checked,
         gestureDirection: directionInput.value,
-        pullDistancePx: pullDistanceInput.value
+        pullDistancePx: pullDistanceInput.value,
+        debugLogging: debugLoggingInput.checked
       })
     );
     showStatus("저장됨");

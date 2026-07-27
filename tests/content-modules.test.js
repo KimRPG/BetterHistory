@@ -10,6 +10,7 @@ const contentFiles = [
   "shared/settings.js",
   "content/menu-styles.js",
   "content/wheel-phase.js",
+  "content/gesture-log.js",
   "content/history-client.js",
   "content/history-menu.js",
   "content/gesture-controller.js",
@@ -171,8 +172,14 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
       gestureDirection: "left",
       pullDistancePx: "120"
     }))),
-    { enabled: false, gestureDirection: "left", pullDistancePx: 120 }
+    {
+      enabled: false,
+      gestureDirection: "left",
+      pullDistancePx: 120,
+      debugLogging: false
+    }
   );
+  assert.equal(sanitizeSettings({ debugLogging: true }).debugLogging, true);
   assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 180);
 });
 
@@ -644,6 +651,49 @@ test("열린 메뉴에서는 가로 제스처를 무시한다", () => {
 
   assert.equal(prevented, true);
   assert.equal(runtime.messages.length, 0);
+});
+
+test("디버그 로그를 켜면 당긴 거리와 시간을 콘솔에 남긴다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const logged = [];
+
+  controller.settings.debugLogging = true;
+  controller.log.enabled = true;
+  controller.menu = createGestureMenuStub();
+  controller.log.finish = new Proxy(controller.log.finish, {
+    apply(target, thisArg, args) {
+      const summary = Reflect.apply(target, thisArg, args);
+      if (summary) logged.push(summary);
+      return summary;
+    }
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+  controller.finishShortGesture();
+
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0].동작, "한 단계 이동");
+  assert.equal(logged[0].방향, "뒤로");
+  assert.equal(logged[0].진행거리, "80px / 180px (44%)");
+  assert.equal(logged[0].당긴시간, "48ms");
+  assert.equal(logged[0].손뗌판정, "입력이 멈춤");
+  assert.deepEqual([...logged[0].입력크기], [20, 20, 20, 20]);
+});
+
+test("디버그 로그를 끄면 아무것도 기록하지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  for (let index = 0; index < 4; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+
+  assert.equal(controller.log.active, false);
+  assert.equal(controller.log.counts.finger, 0);
 });
 
 test("한 단계 이동이 실패하면 토스트로 알린다", async () => {

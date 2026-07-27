@@ -54,6 +54,7 @@
         "shared/settings.js",
         "content/menu-styles.js",
         "content/wheel-phase.js",
+        "content/gesture-log.js",
         "content/history-client.js",
         "content/history-menu.js",
         "content/gesture-controller.js",

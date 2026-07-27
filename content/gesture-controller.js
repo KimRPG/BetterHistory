@@ -35,6 +35,7 @@
       this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
+      this.log = new namespace.GestureLog();
       this.scrollAreaCache = null;
       this.menuSelectionDistance = 0;
       this.menuSelectionUsed = false;
@@ -75,6 +76,7 @@
         this.settings = { ...DEFAULT_SETTINGS };
       }
 
+      this.log.enabled = this.settings.debugLogging;
       this.updateNativeNavigationBlock();
     }
 
@@ -86,6 +88,7 @@
       }
 
       this.settings = sanitizeSettings(this.settings);
+      this.log.enabled = this.settings.debugLogging;
       this.updateNativeNavigationBlock();
       if (!this.settings.enabled) this.closeMenu();
     }
@@ -161,6 +164,14 @@
       const fingerDelta = this.limitPullSpeed(event, getFingerDelta(event, deltaX));
       const momentum = phase === "momentum";
 
+      this.log.start({
+        direction,
+        threshold: this.settings.pullDistancePx,
+        at: event.timeStamp,
+        nativeMomentum: typeof event.momentum === "boolean"
+      });
+      this.log.record({ phase, magnitude: absoluteX, at: event.timeStamp });
+
       if (phase === "finger") {
         this.sawFingerInput = true;
         this.pullDistance += this.settlingDistance + fingerDelta;
@@ -186,6 +197,12 @@
       });
 
       if (pulled >= this.settings.pullDistancePx) {
+        this.log.finish({
+          action: "menu",
+          release: "threshold",
+          pulled,
+          at: event.timeStamp
+        });
         this.finishGesture(() => this.openHistoryMenu(direction));
         return;
       }
@@ -193,7 +210,10 @@
       // 관성이 시작됐다는 것은 손가락을 뗐다는 뜻입니다. 기준을 넘지 못했으니
       // 기다리지 않고 바로 한 단계만 이동합니다.
       if (momentum) {
-        if (pulled < MIN_PULL_DISTANCE) {
+        const action = pulled < MIN_PULL_DISTANCE ? "ignored" : "navigate";
+        this.log.finish({ action, release: "momentum", pulled, at: event.timeStamp });
+
+        if (action === "ignored") {
           this.endGestureCapture();
           return;
         }
@@ -241,6 +261,11 @@
       const shouldNavigate = !this.gestureTriggered &&
         direction !== null &&
         pulled >= MIN_PULL_DISTANCE;
+      this.log.finish({
+        action: shouldNavigate ? "navigate" : "ignored",
+        release: "idle",
+        pulled
+      });
       this.endGestureCapture();
 
       if (shouldNavigate) void this.navigateOneStep(direction);
@@ -384,6 +409,7 @@
       this.lastWheelAt = null;
       this.sawFingerInput = false;
       this.wheelPhase.reset();
+      this.log.reset();
       this.scrollAreaCache = null;
       this.menu.hideGestureIndicator();
     }
