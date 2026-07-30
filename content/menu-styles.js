@@ -6,30 +6,49 @@
   namespace.MENU_STYLES = `
     :host { color-scheme: light dark; }
     * { box-sizing: border-box; }
+    /* Chrome 기본 스와이프 표시를 따릅니다. 큰 검은 원이 화면 가장자리에
+       절반쯤 잘린 채 걸려 있고, 굵은 흰 화살표는 원 중심이 아니라 보이는
+       쪽으로 치우쳐 있습니다. 당길수록 원이 더 밀려 나옵니다. */
     .indicator {
       --progress: 0;
       --shift: 0px;
+      --size: 110px;
+      --hidden: 78px;
+      --emerge: 16px;
       align-items: center;
-      background: rgba(31, 35, 41, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(28, 28, 30, 0.96);
       border-radius: 999px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.26);
       color: white;
       display: none;
-      height: 46px;
-      justify-content: center;
-      left: 14px;
-      opacity: calc(0.42 + var(--progress) * 0.58);
+      height: var(--size);
+      justify-content: flex-end;
+      left: calc(var(--hidden) * -1);
+      opacity: calc(0.82 + var(--progress) * 0.18);
+      padding-right: 8px;
       pointer-events: none;
       position: fixed;
       top: 50%;
-      transform: translate(var(--shift), -50%)
-        scale(calc(0.82 + var(--progress) * 0.18));
-      width: 46px;
+      transform: translate(
+        calc(var(--shift) + var(--progress) * var(--emerge)),
+        -50%
+      );
+      width: var(--size);
     }
     .indicator.visible { display: flex; }
-    .indicator svg { height: 22px; width: 22px; }
-    .indicator.forward { left: auto; right: 14px; }
+    .indicator svg { height: 34px; width: 34px; }
+    .indicator.forward {
+      justify-content: flex-start;
+      left: auto;
+      padding-left: 8px;
+      padding-right: 0;
+      right: calc(var(--hidden) * -1);
+      /* 오른쪽 가장자리에서는 반대로 밀려 나옵니다. */
+      transform: translate(
+        calc(var(--shift) - var(--progress) * var(--emerge)),
+        -50%
+      );
+    }
     .indicator.forward svg { transform: rotate(180deg); }
     .panel {
       animation: enter 150ms cubic-bezier(.2, .8, .2, 1);
@@ -252,6 +271,8 @@
       .site-mark { background: #454a52; border-color: rgba(255,255,255,.06); color: #e2e6eb; }
       .gesture-help { background: rgba(96,165,250,.07); border-top-color: rgba(255,255,255,.09); color: #aeb4bd; }
       .gesture-help b { color: #60a5fa; }
+      /* 어두운 페이지에서 원이 배경에 묻히지 않게 옅은 테두리를 둡니다. */
+      .indicator { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 6px 22px rgba(0, 0, 0, 0.4); }
     }
     @media (prefers-reduced-motion: reduce) {
       .panel { animation: none; }
