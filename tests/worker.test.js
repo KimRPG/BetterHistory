@@ -14,8 +14,11 @@ const workerSource = fs.readFileSync(
 function loadWorker(history, tabErrors = {}, hooks = {}) {
   let messageListener = null;
   let detachListener = null;
+  let createdListener = null;
+  let removedListener = null;
   const calls = [];
   const attachedTabs = new Set();
+  const tabs = new Map((hooks.tabs ?? []).map((tab) => [tab.id, tab]));
 
   const session = new Map();
   const chrome = {
@@ -69,6 +72,16 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
       }
     },
     tabs: {
+      onCreated: {
+        addListener(listener) {
+          createdListener = listener;
+        }
+      },
+      onRemoved: {
+        addListener(listener) {
+          removedListener = listener;
+        }
+      },
       async goBack(tabId) {
         calls.push({ method: "goBack", tabId });
         if (tabErrors.back) throw tabErrors.back;
@@ -76,6 +89,26 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
       async goForward(tabId) {
         calls.push({ method: "goForward", tabId });
         if (tabErrors.forward) throw tabErrors.forward;
+      },
+      async get(tabId) {
+        const tab = tabs.get(tabId);
+        if (!tab) throw new Error(`No tab with given id ${tabId}`);
+        return { ...tab };
+      },
+      async update(tabId, properties) {
+        calls.push({ method: "activate", tabId, properties });
+        const tab = tabs.get(tabId);
+        if (!tab) throw new Error(`No tab with given id ${tabId}`);
+        return { ...tab };
+      },
+      async remove(tabId) {
+        calls.push({ method: "remove", tabId });
+        tabs.delete(tabId);
+      }
+    },
+    windows: {
+      async update(windowId, properties) {
+        calls.push({ method: "focusWindow", windowId, properties });
       }
     }
   };
@@ -87,9 +120,56 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
     calls,
     context,
     session,
+    tabs,
     getMessageListener: () => messageListener,
-    getDetachListener: () => detachListener
+    getDetachListener: () => detachListener,
+    getCreatedListener: () => createdListener,
+    getRemovedListener: () => removedListener
   };
+}
+
+const NO_BACK_HISTORY = { currentIndex: 0, entries: [sampleEntry(30, "현재")] };
+const MISSING_BACK_PAGE = {
+  back: new Error("Cannot find a page to go back to")
+};
+
+function sampleEntry(id, title) {
+  return { id, title, url: `https://example.com/${id}` };
+}
+
+// 링크로 열린 탭(7)과 그 탭을 연 탭(3)입니다.
+function linkOpenedTabs({ openerWindowId = 1, forgetOpener = false } = {}) {
+  return [
+    {
+      id: 7,
+      windowId: 1,
+      url: "https://example.com/opened",
+      title: "새 탭",
+      ...(forgetOpener ? {} : { openerTabId: 3 })
+    },
+    {
+      id: 3,
+      windowId: openerWindowId,
+      url: "https://example.com/opener",
+      title: "원래 보던 페이지"
+    }
+  ];
+}
+
+async function navigateOneStep(runtime, direction = "back") {
+  let response = null;
+  runtime.getMessageListener()(
+    { type: "NAVIGATE_ONE_STEP", direction },
+    { id: "test-extension-id", tab: { id: 7 } },
+    (value) => {
+      response = value;
+    }
+  );
+
+  // 탭 닫기는 응답을 보낸 뒤에 이어지므로 한 번 더 흘려보냅니다.
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  return response;
 }
 
 const sampleHistory = {
@@ -447,3 +527,199 @@ test("보관하는 제스처 로그 개수를 제한한다", async () => {
   assert.equal(logs[0].pulled, 10);
   assert.equal(logs.at(-1).pulled, 69);
 });
+
+test("돌아갈 기록이 없으면 이 탭을 연 탭으로 돌려보내고 현재 탭을 닫는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: linkOpenedTabs()
+  });
+
+  const response = await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: true
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), [
+    { method: "activate", tabId: 3, properties: { active: true } },
+    { method: "remove", tabId: 7 }
+  ]);
+});
+
+test("연 탭이 다른 창에 있으면 그 창도 앞으로 가져온다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: linkOpenedTabs({ openerWindowId: 2 })
+  });
+
+  await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), [
+    { method: "activate", tabId: 3, properties: { active: true } },
+    { method: "focusWindow", windowId: 2, properties: { focused: true } },
+    { method: "remove", tabId: 7 }
+  ]);
+});
+
+test("같은 창이면 창을 따로 앞으로 가져오지 않는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: linkOpenedTabs()
+  });
+
+  await navigateOneStep(runtime);
+
+  assert.equal(
+    runtime.calls.some(({ method }) => method === "focusWindow"),
+    false
+  );
+});
+
+test("Chrome이 opener를 잊어도 열린 순간에 기억해 둔 탭으로 돌아간다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: linkOpenedTabs({ forgetOpener: true })
+  });
+
+  runtime.getCreatedListener()({ id: 7, openerTabId: 3 });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(runtime.session.get("tabOpeners"))),
+    { 7: 3 }
+  );
+
+  const response = await navigateOneStep(runtime);
+
+  assert.equal(response.navigated, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), [
+    { method: "activate", tabId: 3, properties: { active: true } },
+    { method: "remove", tabId: 7 }
+  ]);
+  // 닫은 탭의 관계는 함께 지웁니다.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(runtime.session.get("tabOpeners"))),
+    {}
+  );
+});
+
+test("탭이 닫히면 그 탭을 가리키던 관계도 지운다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY);
+
+  runtime.getCreatedListener()({ id: 7, openerTabId: 3 });
+  runtime.getCreatedListener()({ id: 9, openerTabId: 5 });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  runtime.getRemovedListener()(3);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(runtime.session.get("tabOpeners"))),
+    { 9: 5 }
+  );
+});
+
+test("연 탭이 이미 닫혔으면 현재 탭을 닫지 않는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: [{ id: 7, windowId: 1, openerTabId: 3 }]
+  });
+
+  const response = await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: false
+  });
+  assert.deepEqual(tabActions(runtime), []);
+});
+
+test("앞으로 갈 기록이 없을 때는 연 탭으로 돌아가지 않는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, {
+    forward: new Error("Cannot find a next page in history.")
+  }, { tabs: linkOpenedTabs() });
+
+  const response = await navigateOneStep(runtime, "forward");
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: false
+  });
+  assert.deepEqual(tabActions(runtime), []);
+});
+
+test("뒤로 갈 기록이 없으면 기록 메뉴에 이 탭을 연 페이지를 보여 준다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, {}, { tabs: linkOpenedTabs() });
+
+  const entries = await runtime.context.getTabHistory(7);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(entries)), [
+    {
+      id: -1,
+      title: "원래 보던 페이지",
+      url: "https://example.com/opener",
+      distance: 1,
+      opener: true
+    }
+  ]);
+});
+
+test("돌아갈 기록이 있으면 연 탭 항목은 넣지 않는다", async () => {
+  const runtime = loadWorker(sampleHistory, {}, { tabs: linkOpenedTabs() });
+
+  const entries = await runtime.context.getTabHistory(7);
+
+  assert.equal(entries.length, 2);
+  assert.equal(entries.some((entry) => entry.opener), false);
+});
+
+test("연 탭도 없으면 기록 메뉴는 비어 있다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, {}, { tabs: [] });
+
+  const entries = await runtime.context.getTabHistory(7);
+
+  assert.equal(entries.length, 0);
+});
+
+test("메뉴에서 고른 연 탭 항목은 디버거 없이 처리한다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, {}, { tabs: linkOpenedTabs() });
+
+  await runtime.context.navigateToHistoryEntry(7, -1);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(runtime.calls.some(({ method }) => method === "attach"), false);
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), [
+    { method: "activate", tabId: 3, properties: { active: true } },
+    { method: "remove", tabId: 7 }
+  ]);
+});
+
+test("고른 사이에 연 탭이 닫혔으면 안내 문구로 알린다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, {}, {
+    tabs: [{ id: 7, windowId: 1, openerTabId: 3 }]
+  });
+
+  await assert.rejects(
+    runtime.context.navigateToHistoryEntry(7, -1),
+    /이 탭을 연 페이지로 돌아가지 못했습니다/
+  );
+  assert.deepEqual(tabActions(runtime), []);
+});
+
+test("보관하는 탭 관계 개수를 제한한다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY);
+  const created = runtime.getCreatedListener();
+
+  for (let index = 0; index < 320; index += 1) {
+    created({ id: 1000 + index, openerTabId: index });
+  }
+  for (let tick = 0; tick < 330; tick += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  const openers = runtime.session.get("tabOpeners");
+  assert.equal(Object.keys(openers).length, 300);
+  // 탭 id는 증가하기만 하므로 작은 id가 먼저 밀려납니다.
+  assert.equal(openers[1019], undefined);
+  assert.equal(openers[1020], 20);
+});
+
+function tabActions(runtime) {
+  return runtime.calls.filter(({ method }) =>
+    method === "activate" || method === "remove" || method === "focusWindow"
+  );
+}

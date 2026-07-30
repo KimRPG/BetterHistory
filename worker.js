@@ -3,6 +3,10 @@
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
 const MAX_GESTURE_LOGS = 60;
+const MAX_TRACKED_OPENERS = 300;
+// 실제 히스토리 항목 id는 양수라서, 이 탭을 연 탭을 가리키는 가상 항목과
+// 섞이지 않습니다.
+const OPENER_ENTRY_ID = -1;
 const GENERIC_ERROR_MESSAGE =
   "히스토리를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 
@@ -17,9 +21,23 @@ class HistoryError extends Error {
 const attachedTabs = new Set();
 const tabQueues = new Map();
 let gestureLogQueue = Promise.resolve();
+let openerQueue = Promise.resolve();
 
 chrome.debugger.onDetach.addListener((source) => {
   if (Number.isInteger(source?.tabId)) attachedTabs.delete(source.tabId);
+});
+
+// target="_blank" 링크로 열린 탭에는 돌아갈 기록이 없습니다. 그 탭을 연 탭을
+// 기억해 두면 뒤로 제스처를 원래 보던 곳으로 돌려보낼 수 있습니다. Chrome도
+// openerTabId를 들고 있지만 사용자가 탭을 손으로 옮겨 다니면 지워 버리므로,
+// 관계가 확실한 열린 순간에 따로 적어 둡니다.
+chrome.tabs.onCreated.addListener((tab) => {
+  if (!Number.isInteger(tab?.id) || !Number.isInteger(tab.openerTabId)) return;
+  void rememberOpener(tab.id, tab.openerTabId);
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (Number.isInteger(tabId)) void forgetOpener(tabId);
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -92,6 +110,120 @@ async function appendGestureLog(record) {
   });
 }
 
+// 탭 관계 기록도 제스처 로그처럼 한 줄로 세워 씁니다. 탭이 연달아 열리고
+// 닫히면 읽고 쓰는 사이에 서로의 결과를 덮어씁니다.
+function queueOpenerWrite(update) {
+  openerQueue = openerQueue.then(update, update);
+  return openerQueue;
+}
+
+async function readOpeners() {
+  const stored = await chrome.storage.session.get({ tabOpeners: {} });
+  const openers = stored.tabOpeners;
+  return openers && typeof openers === "object" ? openers : {};
+}
+
+function rememberOpener(tabId, openerTabId) {
+  return queueOpenerWrite(async () => {
+    const openers = { ...(await readOpeners()), [tabId]: openerTabId };
+    await chrome.storage.session.set({ tabOpeners: limitOpeners(openers) });
+  });
+}
+
+// 탭이 닫히면 그 탭의 기록과, 그 탭을 가리키던 기록을 함께 지웁니다.
+function forgetOpener(tabId) {
+  return queueOpenerWrite(async () => {
+    const openers = await readOpeners();
+    const remaining = Object.fromEntries(
+      Object.entries(openers).filter(
+        ([openedId, openerId]) => Number(openedId) !== tabId && openerId !== tabId
+      )
+    );
+
+    if (Object.keys(remaining).length === Object.keys(openers).length) return;
+    await chrome.storage.session.set({ tabOpeners: remaining });
+  });
+}
+
+// 탭을 닫아도 onRemoved를 놓칠 수 있으므로(브라우저 종료, 서비스 워커 교체)
+// 상한을 둡니다. 탭 id는 증가하기만 하므로 작은 id가 오래된 기록입니다.
+function limitOpeners(openers) {
+  const ids = Object.keys(openers);
+  if (ids.length <= MAX_TRACKED_OPENERS) return openers;
+
+  const recent = ids
+    .sort((left, right) => Number(left) - Number(right))
+    .slice(-MAX_TRACKED_OPENERS);
+  return Object.fromEntries(recent.map((id) => [id, openers[id]]));
+}
+
+// 이 탭을 연 탭을 찾습니다. Chrome이 들고 있는 openerTabId가 가장 정확하고,
+// 그것이 지워졌을 때만 기억해 둔 관계를 씁니다. 두 탭 모두 살아 있어야 합니다.
+async function findOpener(tabId) {
+  const tab = await getTab(tabId);
+  const openerTabId = Number.isInteger(tab?.openerTabId)
+    ? tab.openerTabId
+    : (await readOpeners())[tabId];
+
+  if (!Number.isInteger(openerTabId) || openerTabId === tabId) return null;
+
+  const opener = await getTab(openerTabId);
+  return opener ? { tab, opener } : null;
+}
+
+async function getTab(tabId) {
+  try {
+    return await chrome.tabs.get(tabId);
+  } catch {
+    // 이미 닫힌 탭입니다.
+    return null;
+  }
+}
+
+async function returnToOpener(tabId) {
+  const found = await findOpener(tabId);
+  if (!found) return false;
+
+  const { tab, opener } = found;
+  await chrome.tabs.update(opener.id, { active: true });
+
+  if (Number.isInteger(opener.windowId) && opener.windowId !== tab?.windowId) {
+    try {
+      await chrome.windows.update(opener.windowId, { focused: true });
+    } catch {
+      // 창을 앞으로 못 가져와도 탭 자체는 이미 활성화되어 있습니다.
+    }
+  }
+
+  // 닫기를 기다리지 않고 응답합니다. 페이지의 beforeunload 확인창에 막히면
+  // 여기서 멈춰 서서 이미 사라질 탭의 메뉴가 응답을 기다리게 됩니다.
+  void closeReturnedTab(tabId);
+  return true;
+}
+
+async function closeReturnedTab(tabId) {
+  try {
+    await chrome.tabs.remove(tabId);
+  } catch {
+    // 이미 닫혔거나 페이지가 닫기를 막았습니다. 연 탭은 이미 앞에 나와 있습니다.
+  }
+  await forgetOpener(tabId);
+}
+
+async function getOpenerEntry(tabId) {
+  const found = await findOpener(tabId);
+  if (!found) return null;
+
+  const url = cleanText(found.opener.url);
+  return {
+    id: OPENER_ENTRY_ID,
+    title: cleanText(found.opener.title) || url || "이 탭을 연 페이지",
+    url,
+    distance: 1,
+    opener: true
+  };
+}
+
 async function navigateOneStep(tabId, direction = "back") {
   try {
     if (direction === "forward") {
@@ -101,12 +233,24 @@ async function navigateOneStep(tabId, direction = "back") {
     }
     return true;
   } catch (error) {
-    if (isUnavailableHistoryError(error)) return false;
-    throw error;
+    if (!isUnavailableHistoryError(error)) throw error;
+
+    // 링크로 새로 열린 탭에는 돌아갈 기록이 없습니다. 뒤로 제스처를 이 탭을
+    // 연 탭으로 돌려보냅니다.
+    return direction === "back" ? returnToOpener(tabId) : false;
   }
 }
 
 async function getTabHistory(tabId, direction = "back") {
+  const entries = await readNavigationHistory(tabId, direction);
+  if (entries.length || direction !== "back") return entries;
+
+  // 뒤로 갈 기록이 없는 탭이라도 링크로 열렸다면 돌아갈 곳이 있습니다.
+  const openerEntry = await getOpenerEntry(tabId);
+  return openerEntry ? [openerEntry] : [];
+}
+
+async function readNavigationHistory(tabId, direction) {
   return withDebugger(tabId, async (target) => {
     const history = await chrome.debugger.sendCommand(
       target,
@@ -140,6 +284,13 @@ async function getTabHistory(tabId, direction = "back") {
 }
 
 async function navigateToHistoryEntry(tabId, entryId, direction = "back") {
+  if (entryId === OPENER_ENTRY_ID) {
+    if (direction === "back" && await returnToOpener(tabId)) return;
+    throw new HistoryError(
+      "이 탭을 연 페이지로 돌아가지 못했습니다. 그 탭이 닫혔을 수 있습니다."
+    );
+  }
+
   return withDebugger(tabId, async (target) => {
     const history = await chrome.debugger.sendCommand(
       target,

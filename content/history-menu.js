@@ -313,9 +313,12 @@
 
       const distance = document.createElement("span");
       distance.className = "distance";
-      distance.textContent = this.direction === "forward"
-        ? (entry.distance === 1 ? "바로 다음" : `${entry.distance}단계 후`)
-        : (entry.distance === 1 ? "직전" : `${entry.distance}단계 전`);
+      // 링크로 열린 탭은 돌아갈 기록 대신 이 탭을 연 탭 하나를 보여 줍니다.
+      distance.textContent = entry.opener
+        ? "탭을 연 페이지"
+        : this.direction === "forward"
+          ? (entry.distance === 1 ? "바로 다음" : `${entry.distance}단계 후`)
+          : (entry.distance === 1 ? "직전" : `${entry.distance}단계 전`);
 
       copy.append(title, url);
       button.append(mark, copy, distance);
