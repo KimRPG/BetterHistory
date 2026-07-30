@@ -10,73 +10,54 @@
     <main>
       <header class="brand">
         <span class="brand-mark" aria-hidden="true">↔</span>
-        <div>
-          <h1>GestureBackHistory</h1>
-          <p>트랙패드로 이전·다음 페이지를 빠르게 선택하세요.</p>
-        </div>
-      </header>
-
-      <section class="setting primary-setting">
-        <div>
-          <h2>제스처 사용</h2>
-          <p>현재와 이후에 여는 웹페이지에 적용됩니다.</p>
-        </div>
-        <label class="switch">
+        <h1>GestureBackHistory</h1>
+        <label class="switch" title="제스처 사용">
           <input id="enabled" type="checkbox">
           <span aria-hidden="true"></span>
-          <span class="sr-only">제스처 사용 여부</span>
+          <span class="sr-only">제스처 사용</span>
         </label>
-      </section>
+      </header>
 
-      <section class="setting stacked">
-        <label for="gesture-direction">
-          <strong>뒤로가기 방향</strong>
-          <span>반대 방향 제스처는 앞으로가기로 동작합니다.</span>
-        </label>
+      <section class="row">
+        <label for="gesture-direction">뒤로가기 방향</label>
         <select id="gesture-direction">
           <option value="right">오른쪽으로 스와이프</option>
           <option value="left">왼쪽으로 스와이프</option>
         </select>
       </section>
 
-      <section class="setting stacked">
-        <label for="pull-distance">
-          <strong>기록 메뉴 열기 기준</strong>
-          <span>이만큼 당기면 메뉴가 열리고, 그 전에 놓으면 한 단계만 이동합니다.</span>
-        </label>
-        <select id="pull-distance"></select>
-      </section>
+      <details class="advanced" id="advanced">
+        <summary>세부 설정</summary>
 
-      <section class="setting primary-setting">
-        <div>
-          <h2>디버그 로그</h2>
-          <p>제스처마다 당긴 거리와 시간을 페이지 콘솔(F12)에 남깁니다.</p>
-        </div>
-        <label class="switch">
-          <input id="debug-logging" type="checkbox">
-          <span aria-hidden="true"></span>
-          <span class="sr-only">디버그 로그 사용 여부</span>
-        </label>
-      </section>
+        <section class="row">
+          <label for="pull-distance">기록 메뉴 열기 기준</label>
+          <select id="pull-distance"></select>
+        </section>
 
-      <section class="setting primary-setting">
-        <div>
-          <h2>제스처 연습</h2>
-          <p>판정 경계가 실시간으로 보이는 페이지에서 손에 맞춰 보세요.</p>
-        </div>
-        <button id="open-practice" type="button" class="link-button">열기</button>
-      </section>
+        <section class="row">
+          <span>제스처 연습</span>
+          <button id="open-practice" type="button" class="link-button">열기</button>
+        </section>
 
-      <section class="setting stacked" id="log-panel" hidden>
-        <div class="log-head">
-          <strong>최근 제스처</strong>
-          <div class="log-actions">
-            <button id="copy-logs" type="button">복사</button>
-            <button id="clear-logs" type="button">지우기</button>
+        <section class="row">
+          <label for="debug-logging">디버그 로그</label>
+          <label class="switch">
+            <input id="debug-logging" type="checkbox">
+            <span aria-hidden="true"></span>
+          </label>
+        </section>
+
+        <section class="log" id="log-panel" hidden>
+          <div class="log-head">
+            <strong>최근 제스처</strong>
+            <div class="log-actions">
+              <button id="copy-logs" type="button">복사</button>
+              <button id="clear-logs" type="button">지우기</button>
+            </div>
           </div>
-        </div>
-        <ol id="log-list" class="log-list"></ol>
-      </section>
+          <ol id="log-list" class="log-list"></ol>
+        </section>
+      </details>
 
       <p class="notice">
         설치 전에 열려 있던 탭은 한 번 새로고침해 주세요. Chrome 설정·새 탭·웹 스토어에서는 동작하지 않습니다.

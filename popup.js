@@ -12,6 +12,7 @@ const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
 const pullDistanceInput = document.querySelector("#pull-distance");
 const debugLoggingInput = document.querySelector("#debug-logging");
+const advanced = document.querySelector("#advanced");
 const logPanel = document.querySelector("#log-panel");
 const logList = document.querySelector("#log-list");
 const status = document.querySelector("#status");
@@ -40,6 +41,8 @@ async function initialize() {
     directionInput.value = settings.gestureDirection;
     pullDistanceInput.value = String(settings.pullDistancePx);
     debugLoggingInput.checked = settings.debugLogging;
+    // 디버그 로그를 켜 둔 사람은 그걸 보려고 팝업을 엽니다. 접어 두지 않습니다.
+    advanced.open = settings.debugLogging;
     await refreshLogs();
   } catch (error) {
     showStatus(error instanceof Error ? error.message : String(error), true);
@@ -105,7 +108,7 @@ async function refreshLogs() {
       item.append(
         action,
         ` ${entry.direction === "forward" ? "앞으로" : "뒤로"}` +
-        ` · ${entry.pulled}/${entry.threshold}px · ${entry.pullMs}ms` +
+        ` · ${entry.heldMs}/${entry.holdThreshold}ms · ${entry.pulled}px` +
         ` · 지연 ${entry.decisionLagMs}ms`
       );
       return item;
