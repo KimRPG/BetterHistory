@@ -12,12 +12,17 @@
   const GESTURE_RELEASE_MS = 450;
   const GESTURE_PAUSE_MS = 1200;
   const PATIENT_PROGRESS = 0.4;
+  // WheelEvent.momentum이 있으면 "관성 없이 조용해짐"이 곧 "손가락이 아직 닿아
+  // 있음"입니다. 기준 시간의 이만큼을 당긴 뒤 멈췄다면 메뉴를 여는 홀드로 봅니다.
+  // 살짝 스치고 멈춘 것까지 메뉴가 되지 않게 하는 최소선이며, 기다리는
+  // 시간(PATIENT_PROGRESS)과는 별개로 조절할 수 있게 따로 둡니다.
+  const HOLD_MENU_PROGRESS = 0.4;
   const MENU_SELECTION_RELEASE_MS = 300;
   const GESTURE_SHIFT_SCALE = 0.42;
   const GESTURE_SHIFT_MAX = 40;
-  // 세게 튕기면 손가락도 실제로 멀리 움직이기 때문에, 거리만 보면 오래 당긴
-  // 것과 구분되지 않습니다. 진행 속도에 상한을 둬서 "빨리 튕겨 거리를 버는"
-  // 경우를 막습니다. 기준 거리는 결국 최소 지속 시간으로도 작동합니다.
+  // 당긴 거리는 판정에 쓰지 않지만 인디케이터와 디버그 기록에 남습니다. 세게
+  // 튕기면 손가락도 실제로 멀리 움직이므로, 진행 속도에 상한을 둬서 기록된
+  // 거리가 손가락 이동에 가깝게 유지되도록 합니다.
   const MAX_PULL_SPEED = 2;
   const MAX_STEP_MS = 50;
   // 관성 확정에는 길어야 몇 이벤트면 충분합니다. 그보다 오래 붙잡아 둔 거리는
@@ -41,6 +46,8 @@
       this.fingerStartedAt = null;
       this.lastFingerAt = 0;
       this.sawFingerInput = false;
+      // 브라우저 지원 여부이므로 제스처가 끝나도 되돌리지 않습니다.
+      this.nativeMomentum = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
       this.log = new namespace.GestureLog((entry) => {
         void namespace.historyClient.logGesture(entry);
@@ -170,6 +177,9 @@
       }
       this.gestureDirection = direction;
 
+      // 브라우저가 관성 여부를 직접 알려 주는지는 한 번 확인하면 계속 같습니다.
+      if (typeof event.momentum === "boolean") this.nativeMomentum = true;
+
       // 손가락이 실제로 움직인 만큼만 쌓습니다. 관성 구간은 이미 손을 뗀
       // 뒤라서 여기에 넣으면 짧게 튕긴 제스처가 길게 당긴 것처럼 보입니다.
       const phase = this.wheelPhase.update(event, deltaX);
@@ -181,7 +191,7 @@
         threshold: this.settings.pullDistancePx,
         holdThreshold: this.settings.pullHoldMs,
         at: event.timeStamp,
-        nativeMomentum: typeof event.momentum === "boolean"
+        nativeMomentum: this.nativeMomentum
       });
       this.log.record({ phase, magnitude: absoluteX, at: event.timeStamp });
 
@@ -214,29 +224,31 @@
       const heldMs = this.fingerStartedAt === null
         ? 0
         : this.lastFingerAt - this.fingerStartedAt;
-      const reachedDistance = pulled >= this.settings.pullDistancePx;
-      const reachedHold = heldMs >= this.settings.pullHoldMs;
+      const progress = this.toProgress(heldMs);
 
       this.menu.showGestureIndicator({
         clientY: event.clientY,
-        progress: Math.max(
-          pulled / this.settings.pullDistancePx,
-          heldMs / this.settings.pullHoldMs
-        ),
+        progress,
         direction,
         shift: clamp(this.pullDistance * GESTURE_SHIFT_SCALE, GESTURE_SHIFT_MAX)
       });
 
-      // 멀리 당기거나 오래 당기거나, 둘 중 하나만 넘으면 메뉴입니다.
-      if (reachedDistance || reachedHold) {
+      // 판정은 시간으로만 합니다. 손가락을 계속 대고 있는 시간이 기준을 넘으면
+      // 메뉴입니다. 얼마나 멀리 갔는지는 보지 않습니다 — 거리를 함께 보면 크게
+      // 당겼다 놓는 동작이 "메뉴"와 "한 단계"로 갈려서, 손을 뗐는지 여부와
+      // 무관한 두 번째 기준을 사용자가 감으로 익혀야 합니다.
+      if (heldMs >= this.settings.pullHoldMs) {
+        const opensMenu = this.hasTabHistory();
         this.log.finish({
-          action: "menu",
-          release: reachedDistance ? "threshold" : "hold",
+          action: opensMenu ? "menu" : "navigate",
+          release: "hold",
           pulled,
           heldMs,
           at: event.timeStamp
         });
-        this.finishGesture(() => this.openHistoryMenu(direction));
+        this.finishGesture(() => opensMenu
+          ? this.openHistoryMenu(direction)
+          : this.navigateOneStep(direction));
         return;
       }
 
@@ -254,14 +266,21 @@
         return;
       }
 
-      const progress = Math.max(
-        pulled / this.settings.pullDistancePx,
-        heldMs / this.settings.pullHoldMs
-      );
-      this.restartIdleTimer(
-        () => this.finishShortGesture(),
-        progress >= PATIENT_PROGRESS ? GESTURE_PAUSE_MS : GESTURE_RELEASE_MS
-      );
+      this.restartIdleTimer(() => this.finishShortGesture(), this.toIdleDelay(progress));
+    }
+
+    toProgress(heldMs) {
+      return heldMs / this.settings.pullHoldMs;
+    }
+
+    // 관성으로 손 뗌을 정확히 알 수 있으면 "이어질까" 참을 이유가 없습니다.
+    // 관성 없이 조용해진 것 자체가 손가락이 아직 닿아 있다는 신호이므로,
+    // 오래 붙잡아 두지 않고 곧바로 판정합니다.
+    toIdleDelay(progress) {
+      if (this.nativeMomentum || progress < PATIENT_PROGRESS) {
+        return GESTURE_RELEASE_MS;
+      }
+      return GESTURE_PAUSE_MS;
     }
 
     // 판정이 끝난 뒤에도 관성 이벤트가 한참 더 들어오므로, 입력이 잦아들 때까지
@@ -298,21 +317,47 @@
 
     // 튕기지 않고 천천히 손을 떼면 관성이 없어서 이벤트가 그냥 끊깁니다.
     // 이때는 입력이 멈춘 것을 손을 뗀 것으로 봅니다.
+    //
+    // 단, 관성 여부를 정확히 알 수 있는 Chrome(151+)에서는 이야기가 다릅니다.
+    // 튕겼다면 반드시 관성이 오므로, 관성 하나 없이 조용해진 것은 손가락이
+    // 아직 닿아 있다는 뜻입니다. 충분히 당겨 둔 상태라면 이걸 "당긴 채 멈춤"
+    // 으로 보고 메뉴를 엽니다. 그대로 위·아래로 고르고 손을 떼면 이동합니다.
     finishShortGesture() {
       const direction = this.gestureDirection;
       const pulled = Math.abs(this.pullDistance);
-      const shouldNavigate = !this.gestureTriggered && direction !== null;
+      const heldMs = this.fingerStartedAt === null
+        ? 0
+        : this.lastFingerAt - this.fingerStartedAt;
+      const shouldAct = !this.gestureTriggered && direction !== null;
+      const opensMenu = this.isHoldingStill(heldMs) && this.hasTabHistory();
+
       this.log.finish({
-        action: "navigate",
-        release: "idle",
+        action: opensMenu ? "menu" : "navigate",
+        release: opensMenu ? "stillness" : "idle",
         pulled,
-        heldMs: this.fingerStartedAt === null
-          ? 0
-          : this.lastFingerAt - this.fingerStartedAt
+        heldMs
       });
       this.endGestureCapture();
 
-      if (shouldNavigate) void this.navigateOneStep(direction);
+      if (!shouldAct) return;
+      if (opensMenu) void this.openHistoryMenu(direction);
+      else void this.navigateOneStep(direction);
+    }
+
+    // 관성이 한 번도 오지 않은 채 입력이 끊겼다는 판정은 WheelEvent.momentum이
+    // 있을 때만 믿을 수 있습니다. 감쇠 추정은 짧은 튕김의 관성을 놓칠 수 있어,
+    // 손을 뗀 제스처를 홀드로 오해하게 됩니다.
+    isHoldingStill(heldMs) {
+      return this.nativeMomentum && this.toProgress(heldMs) >= HOLD_MENU_PROGRESS;
+    }
+
+    // 이 탭의 기록이 하나뿐이면 메뉴에 보여 줄 것이 없습니다. 서비스 워커에
+    // 물어보고 나서야 알면 빈 메뉴가 떴다 사라지므로, 왕복 없이 여기서 먼저
+    // 거릅니다. 링크로 열린 탭이라면 한 단계 이동이 이 탭을 연 탭으로
+    // 돌려보내고, 그마저 없으면 아무 일도 일어나지 않습니다.
+    hasTabHistory() {
+      const length = window.history?.length;
+      return !Number.isInteger(length) || length > 1;
     }
 
     async navigateOneStep(direction) {

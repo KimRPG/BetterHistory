@@ -17,7 +17,7 @@ const contentFiles = [
   "content/index.js"
 ];
 
-function loadContentModules({ scrollingElement = null } = {}) {
+function loadContentModules({ scrollingElement = null, historyLength = 2 } = {}) {
   const listeners = [];
   const messages = [];
   const rootAttributes = new Set();
@@ -52,6 +52,7 @@ function loadContentModules({ scrollingElement = null } = {}) {
   const window = {
     innerHeight: 800,
     innerWidth: 1200,
+    history: { length: historyLength },
     addEventListener(type, listener) {
       listeners.push({ type, listener });
     }
@@ -176,13 +177,13 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
       enabled: false,
       gestureDirection: "left",
       pullDistancePx: 100,
-      pullHoldMs: 250,
+      pullHoldMs: 120,
       debugLogging: false
     }
   );
-  // 기준 시간은 저장하지 않고 선택한 거리에서 함께 끌어옵니다.
-  assert.equal(sanitizeSettings({ pullDistancePx: 220 }).pullHoldMs, 500);
-  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullHoldMs, 350);
+  // 판정에 쓰는 기준 시간은 저장하지 않고 선택한 단계에서 함께 끌어옵니다.
+  assert.equal(sanitizeSettings({ pullDistancePx: 220 }).pullHoldMs, 280);
+  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullHoldMs, 180);
   assert.equal(sanitizeSettings({ debugLogging: true }).debugLogging, true);
   assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 150);
   // 예전 값(180px)은 더 이상 선택지가 아니므로 기본값으로 되돌아갑니다.
@@ -288,7 +289,7 @@ test("확장 연결이 끊긴 탭의 한 단계 이동은 조용히 무시한다
   );
 });
 
-test("기준 거리를 넘게 당기면 손을 떼기 전에 메뉴가 열린다", () => {
+test("기준 시간을 넘게 당기면 손을 떼기 전에 메뉴가 열린다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -300,18 +301,18 @@ test("기준 거리를 넘게 당기면 손을 떼기 전에 메뉴가 열린다
     }
   });
 
-  // 기본 기준은 150px입니다. 7번(140px)까지는 아직 열리지 않아야 합니다.
-  for (let index = 0; index < 7; index += 1) {
+  // 기본 기준은 180ms입니다. 12번(176ms)까지는 아직 열리지 않아야 합니다.
+  for (let index = 0; index < 12; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
   assert.deepEqual(openedDirections, []);
 
-  controller.handleWheel(createFingerEvent(7 * 16));
+  controller.handleWheel(createFingerEvent(12 * 16));
   assert.deepEqual(openedDirections, ["back"]);
   controller.endGestureCapture();
 });
 
-test("기준 거리 전에 입력이 끊기면 한 단계만 이동한다", async () => {
+test("얼마 당기지 않고 입력이 끊기면 한 단계만 이동한다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -322,7 +323,8 @@ test("기준 거리 전에 입력이 끊기면 한 단계만 이동한다", asyn
       return Promise.resolve(true);
     }
   });
-  for (let index = 0; index < 4; index += 1) {
+  // 40px = 기준의 27%. 홀드로 볼 만큼 당기지 않았습니다.
+  for (let index = 0; index < 2; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
 
@@ -337,24 +339,106 @@ test("기준 거리 전에 입력이 끊기면 한 단계만 이동한다", asyn
   });
 });
 
-test("설정한 기준 거리를 따른다", () => {
+// 튕겼다면 반드시 관성이 옵니다. 관성 하나 없이 조용해졌다면 손가락이 아직
+// 트랙패드에 닿아 있다는 뜻이라, 충분히 당겨 둔 상태면 홀드로 봅니다.
+test("관성 없이 멈추면 충분히 당긴 제스처는 메뉴가 열린다", async () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
 
-  controller.settings.pullDistancePx = 100;
   controller.menu = createGestureMenuStub({
     open: (direction) => {
       openedDirections.push(direction);
       return Promise.resolve(true);
     }
   });
-  for (let index = 0; index < 4; index += 1) {
+  // 80ms = 기준 시간의 44%. 기준(180ms)에는 못 미칩니다.
+  for (let index = 0; index < 6; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
   assert.deepEqual(openedDirections, []);
 
-  controller.handleWheel(createFingerEvent(4 * 16));
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, ["back"]);
+  assert.equal(
+    runtime.messages.some((message) => message.type === "NAVIGATE_ONE_STEP"),
+    false
+  );
+});
+
+test("관성 여부를 모르는 Chrome에서는 멈춤을 홀드로 보지 않는다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  // momentum 속성이 없는 이벤트입니다. 감쇠 추정은 짧은 튕김의 관성을 놓칠 수
+  // 있어, 이 신호로 홀드를 판정하면 손을 뗀 제스처를 오해합니다.
+  for (let index = 0; index < 4; index += 1) {
+    controller.handleWheel(createWheelEvent(index * 16, -20));
+  }
+
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
+});
+
+test("기록이 없는 탭에서는 멈춰도 메뉴 대신 한 단계 이동한다", async () => {
+  const runtime = loadContentModules({ historyLength: 1 });
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  // 홀드로 볼 만큼(80ms) 당겼지만 보여 줄 기록이 없습니다.
+  for (let index = 0; index < 6; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+
+  controller.finishShortGesture();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(openedDirections, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.messages.at(-1))), {
+    type: "NAVIGATE_ONE_STEP",
+    direction: "back"
+  });
+});
+
+test("설정한 기준 시간을 따른다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const openedDirections = [];
+
+  controller.settings.pullHoldMs = 120;
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      openedDirections.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  for (let index = 0; index < 8; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16));
+  }
+  assert.deepEqual(openedDirections, []);
+
+  controller.handleWheel(createFingerEvent(8 * 16));
   assert.deepEqual(openedDirections, ["back"]);
   controller.endGestureCapture();
 });
@@ -607,7 +691,7 @@ test("일정한 속도로 계속 당기는 동안은 관성으로 보지 않는�
       return Promise.resolve(true);
     }
   });
-  for (let index = 0; index < 9; index += 1) {
+  for (let index = 0; index < 13; index += 1) {
     controller.handleWheel(createWheelEvent(index * 16, -20));
   }
 
@@ -721,33 +805,33 @@ test("디버그 로그를 켜면 당긴 거리와 시간을 콘솔에 남긴다"
     }
   });
 
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < 6; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
   controller.finishShortGesture();
 
   assert.equal(logged.length, 1);
-  assert.equal(logged[0].action, "navigate");
-  assert.equal(logged[0].release, "idle");
+  assert.equal(logged[0].action, "menu");
+  assert.equal(logged[0].release, "stillness");
   assert.equal(logged[0].direction, "back");
-  assert.equal(logged[0].pulled, 80);
-  assert.equal(logged[0].threshold, 150);
-  assert.equal(logged[0].pullMs, 48);
-  assert.equal(logged[0].heldMs, 48);
-  assert.equal(logged[0].holdThreshold, 350);
-  assert.deepEqual([...logged[0].samples], [20, 20, 20, 20]);
+  assert.equal(logged[0].pulled, 120);
+  assert.equal(logged[0].pullMs, 80);
+  assert.equal(logged[0].heldMs, 80);
+  assert.equal(logged[0].holdThreshold, 180);
+  assert.deepEqual([...logged[0].samples], [20, 20, 20, 20, 20, 20]);
 
   // 콘솔에는 사람이 읽는 형태로 나갑니다.
   const summary = runtime.namespace.toGestureSummary(logged[0]);
-  assert.equal(summary.동작, "한 단계 이동");
-  assert.equal(summary.진행거리, "80px / 150px (53%)");
-  assert.equal(summary.당긴시간, "48ms / 350ms (14%)");
-  assert.equal(summary.손뗌판정, "입력이 멈춤");
+  assert.equal(summary.동작, "기록 메뉴 열기");
+  // 판정은 시간으로만 하므로 거리에는 기준을 붙이지 않습니다.
+  assert.equal(summary.진행거리, "120px");
+  assert.equal(summary.당긴시간, "80ms / 180ms (44%)");
+  assert.equal(summary.손뗌판정, "당긴 채 멈춤 (손가락 유지)");
 
   // 페이지가 이동해도 남도록 서비스 워커로 보냅니다.
   const sent = runtime.messages.filter((m) => m.type === "LOG_GESTURE");
   assert.equal(sent.length, 1);
-  assert.equal(sent[0].entry.pulled, 80);
+  assert.equal(sent[0].entry.pulled, 120);
 });
 
 test("디버그 로그를 끄면 아무것도 기록하지 않는다", () => {

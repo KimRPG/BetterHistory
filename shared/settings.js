@@ -7,18 +7,21 @@
     enabled: true,
     gestureDirection: "right",
     pullDistancePx: 150,
-    pullHoldMs: 350,
+    pullHoldMs: 180,
     debugLogging: false
   });
 
-  // 거리와 시간 중 하나만 넘으면 기록 메뉴가 열립니다. 빠르게 멀리 당기는
-  // 사람과 천천히 오래 당기는 사람이 둘 다 있어서, 거리 하나로는 후자가
-  // 1초 넘게 당겨야 열리는 문제가 생깁니다. 손가락이 실제로 움직인 구간만
-  // 재므로 관성 꼬리는 어느 쪽에도 섞이지 않습니다.
+  // 기록 메뉴는 손가락을 대고 있는 시간(holdMs)으로만 열립니다. 당긴 거리는
+  // 판정에 쓰지 않고 인디케이터와 디버그 기록에만 씁니다. 거리를 함께 보면 크게
+  // 당겼다 놓는 동작이 손 뗌과 무관한 두 번째 기준으로 갈리기 때문입니다.
+  // value는 저장된 설정 키(pullDistancePx)와 인디케이터 눈금으로 남습니다.
+  // 250/350/500ms는 거리 기준을 보조하는 backstop이었습니다. 느리게 당기는
+  // 사람만 구제하면 됐으니 길어도 괜찮았습니다. 단독 기준이 되면 실제 당김
+  // 시간(대략 100~250ms)에 맞춰야 하므로 훨씬 짧아집니다.
   const PULL_DISTANCE_CHOICES = Object.freeze([
-    Object.freeze({ value: 100, holdMs: 250, label: "짧게 · 살짝만 당겨도 열림" }),
-    Object.freeze({ value: 150, holdMs: 350, label: "보통" }),
-    Object.freeze({ value: 220, holdMs: 500, label: "길게 · 확실히 당겨야 열림" })
+    Object.freeze({ value: 100, holdMs: 120, label: "짧게 · 살짝만 당겨도 열림" }),
+    Object.freeze({ value: 150, holdMs: 180, label: "보통" }),
+    Object.freeze({ value: 220, holdMs: 280, label: "길게 · 확실히 당겨야 열림" })
   ]);
 
   function findPullDistance(value) {

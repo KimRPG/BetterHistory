@@ -15,7 +15,7 @@ const contentFiles = JSON.parse(
   fs.readFileSync(path.join(root, "manifest.json"), "utf8")
 ).content_scripts[0].js;
 
-function createController() {
+function createController({ historyLength = 2 } = {}) {
   const messages = [];
   const opened = [];
   const timers = new Map();
@@ -55,7 +55,12 @@ function createController() {
     },
     URL,
     WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
-    window: { innerHeight: 800, innerWidth: 1200, addEventListener() {} }
+    window: {
+      innerHeight: 800,
+      innerWidth: 1200,
+      addEventListener() {},
+      history: { length: historyLength }
+    }
   });
 
   for (const file of contentFiles) {
@@ -257,6 +262,31 @@ test("당기다 잠깐 쉬어도 제스처가 끊기지 않는다", () => {
   }
 });
 
+// 링크로 열린 탭에는 보여 줄 기록이 없습니다. 메뉴를 띄웠다 지우는 대신
+// 곧바로 한 단계 이동을 보내 이 탭을 연 탭으로 돌아가게 합니다.
+test("기록이 없는 탭에서는 길게 당겨도 메뉴를 열지 않는다", () => {
+  const harness = createController({ historyLength: 1 });
+
+  pull(harness, 30, 16);
+  harness.advance(1200);
+
+  assert.deepEqual([...harness.opened], []);
+  assert.deepEqual(
+    [...harness.messages].map((message) => message.type),
+    ["NAVIGATE_ONE_STEP"]
+  );
+  assert.equal(harness.messages[0].direction, "back");
+});
+
+test("기록이 있는 탭에서는 길게 당기면 메뉴가 열린다", () => {
+  const harness = createController({ historyLength: 2 });
+
+  pull(harness, 30, 16);
+  harness.advance(1200);
+
+  assert.deepEqual([...harness.opened], ["back"]);
+});
+
 test("당기다 감속해도 관성으로 오해하지 않는다", () => {
   const harness = createController();
   let magnitude = 20;
@@ -283,8 +313,9 @@ test("세로로 흔들리며 당겨도 기준을 넘기면 메뉴가 열린다",
   assert.equal(harness.outcome(), "menu");
 });
 
-test("기준에 못 미친 채 입력이 멈추면 한 단계만 이동한다", () => {
-  for (const steps of [1, 3, 8]) {
+test("얼마 당기지 않고 입력이 멈추면 한 단계만 이동한다", () => {
+  // 3회 = 36px는 기준의 24%. 홀드로 보기에는 모자랍니다.
+  for (const steps of [1, 3]) {
     const harness = createController();
 
     pull(harness, steps);
@@ -293,6 +324,32 @@ test("기준에 못 미친 채 입력이 멈추면 한 단계만 이동한다", 
     // 가로 제스처로 인식된 이상 크기와 무관하게 한 단계 이동합니다.
     assert.equal(harness.outcome(), "back", `${steps}회 입력`);
   }
+});
+
+test("당긴 채 멈추면 손가락이 남아 있는 것으로 보고 메뉴를 연다", () => {
+  const harness = createController();
+
+  // 10회 = 75ms는 기준 시간(180ms)의 42%. 여기서 관성 하나 없이 조용해졌다면
+  // 손가락이 아직 닿아 있다는 뜻입니다.
+  pull(harness, 10);
+  harness.advance(1200);
+
+  assert.deepEqual([...harness.opened], ["back"]);
+  assert.deepEqual([...harness.messages].map((message) => message.type), []);
+});
+
+test("관성 여부를 모르는 Chrome에서는 멈춰도 한 단계만 이동한다", () => {
+  const harness = createController();
+
+  // momentum 속성 없이 같은 크기로 10회. 감쇠 추정으로는 손을 뗀 것인지
+  // 확신할 수 없으므로 안전하게 한 단계 이동입니다.
+  for (let step = 0; step < 10; step += 1) {
+    harness.wheel(-12);
+    harness.advance(FRAME);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "back");
 });
 
 test("비스듬히 당겨 메뉴가 열려도 선택이 저절로 움직이지 않는다", () => {
@@ -314,7 +371,7 @@ test("비스듬히 당겨 메뉴가 열려도 선택이 저절로 움직이지 �
 test("메뉴가 열린 뒤 위·아래로 움직이면 선택이 움직이고 놓으면 이동한다", () => {
   const harness = createController();
 
-  pull(harness, 20, 14);
+  pull(harness, 24, 14);
   assert.deepEqual([...harness.opened], ["back"]);
 
   // 이제는 가로 성분이 거의 없는 분명한 세로 움직임입니다.
@@ -353,6 +410,11 @@ test("실제 트랙패드 당김의 이동 거리를 대부분 반영한다", ()
   // WheelEvent.momentum이 있으면 추정이 필요 없어 거의 그대로 반영됩니다.
   const exact = replayRealPull(true);
   assert.equal(exact.pulled >= 150, true, `정확 모드에서 ${exact.pulled}px만 반영됨`);
+
+  // 이 입력은 166px을 125ms에 당긴 것입니다. 판정을 시간으로만 하므로 기준
+  // 시간(180ms)에 못 미쳐 메뉴가 열리지 않고, 여기서 손가락을 멈추면 열립니다.
+  assert.deepEqual([...exact.harness.opened], []);
+  exact.harness.advance(1200);
   assert.deepEqual([...exact.harness.opened], ["back"]);
 
   // 추정 모드에서도 예전(80px)보다는 훨씬 많이 반영돼야 합니다.
@@ -371,6 +433,17 @@ function slowPull(harness, { totalMs, speed }) {
   }
 }
 
+// 튕겨서 손을 떼면 관성 꼬리가 따라옵니다. 이게 없는 입력은 튕김이 아니라
+// 손가락을 그대로 대고 있는 것입니다.
+function release(harness, magnitude = 4) {
+  for (let step = 0; step < 60; step += 1) {
+    magnitude *= 0.93;
+    if (magnitude < 0.5) break;
+    harness.wheel(-magnitude, 0, true);
+    harness.advance(FRAME);
+  }
+}
+
 test("천천히 오래 당기면 거리가 모자라도 메뉴가 열린다", () => {
   const harness = createController();
 
@@ -382,15 +455,33 @@ test("천천히 오래 당기면 거리가 모자라도 메뉴가 열린다", ()
 });
 
 test("빠르게 튕기는 짧은 제스처는 시간 기준에 걸리지 않는다", () => {
-  for (const totalMs of [44, 117, 214]) {
+  for (const totalMs of [44, 117]) {
     const harness = createController();
 
     slowPull(harness, { totalMs, speed: 0.5 });
+    release(harness);
     harness.advance(1200);
 
     assert.deepEqual([...harness.opened], [], `${totalMs}ms 제스처`);
     assert.equal(harness.outcome(), "back", `${totalMs}ms 제스처`);
   }
+});
+
+// 시간만으로 판정하는 한 피할 수 없는 지점입니다. 아래 두 입력은 지속 시간이
+// 거의 같은데(214ms / 224ms) 손가락 이동은 89px 대 465px로 5배 차이입니다.
+// 거리를 함께 보던 예전에는 갈렸지만, 지금은 둘 다 메뉴로 처리됩니다.
+test("느리게 오래 당긴 것과 빠르게 오래 당긴 것은 구분하지 않는다", () => {
+  const slow = createController();
+  slowPull(slow, { totalMs: 214, speed: 0.5 });
+  release(slow);
+  slow.advance(1200);
+
+  const fast = createController();
+  pull(fast, 28, 18);
+  fast.advance(1200);
+
+  assert.deepEqual([...slow.opened], ["back"]);
+  assert.deepEqual([...fast.opened], ["back"]);
 });
 
 test("기준 시간은 손가락 구간만 세고 관성 꼬리는 빼놓는다", () => {
@@ -426,11 +517,12 @@ test("이제 막 시작한 작은 제스처는 오래 기다리지 않는다", (
 test("멈칫한 시간도 당긴 시간에 포함돼 다시 움직이면 메뉴가 열린다", () => {
   const harness = createController();
 
-  // 200ms 당기고 → 600ms 멈칫 → 다시 움직이는 순간 기준 시간(350ms)을 넘습니다.
-  pull(harness, 24, 5);
+  // 91ms 당기고 → 300ms 멈칫 → 다시 움직이는 순간 기준 시간(180ms)을 넘습니다.
+  // 멈춤이 0.45초를 넘으면 홀드로 잡히므로, 그보다 짧게 쉬는 경우입니다.
+  pull(harness, 12, 5);
   assert.deepEqual([...harness.opened], []);
 
-  harness.advance(600);
+  harness.advance(300);
   pull(harness, 2, 5);
   harness.advance(1500);
 

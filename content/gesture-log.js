@@ -3,7 +3,7 @@
 
   const namespace = globalThis.GestureBackHistory ??= {};
 
-  // 제스처 하나가 끝날 때마다 판정 근거를 남깁니다. 기준 거리를 손에 맞게
+  // 제스처 하나가 끝날 때마다 판정 근거를 남깁니다. 기준 시간을 손에 맞게
   // 맞추거나 "왜 이렇게 판정됐지"를 확인할 때 씁니다. 뒤로 가면 페이지 콘솔은
   // 지워지므로, 같은 기록을 서비스 워커로도 보내 보존합니다.
   const BADGE_STYLE =
@@ -15,9 +15,9 @@
     navigate: "한 단계 이동"
   };
   const RELEASE_LABELS = {
-    threshold: "기준 거리 도달 (당기는 중 바로)",
     hold: "기준 시간 도달 (당기는 중 바로)",
     momentum: "관성 시작 = 손 뗌",
+    stillness: "당긴 채 멈춤 (손가락 유지)",
     idle: "입력이 멈춤"
   };
 
@@ -120,8 +120,8 @@
     const summary = {
       동작: ACTION_LABELS[entry.action] ?? entry.action,
       방향: entry.direction === "forward" ? "앞으로" : "뒤로",
-      진행거리: `${entry.pulled}px / ${entry.threshold}px` +
-        ` (${Math.round((entry.pulled / entry.threshold) * 100)}%)`,
+      // 판정은 시간으로만 하므로 거리에는 기준을 붙이지 않습니다.
+      진행거리: `${entry.pulled}px`,
       당긴시간: `${entry.heldMs}ms / ${entry.holdThreshold}ms` +
         ` (${Math.round((entry.heldMs / entry.holdThreshold) * 100)}%)`,
       손가락이동: `${entry.fingerTravel}px`,
