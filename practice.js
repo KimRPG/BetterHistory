@@ -5,15 +5,26 @@
 // 어긋나므로 절대 복제하지 않습니다.
 
 const namespace = globalThis.GestureBackHistory;
-const { DEFAULT_SETTINGS, PULL_DISTANCE_CHOICES, sanitizeSettings } = namespace;
+const {
+  DEFAULT_SETTINGS,
+  HORIZONTAL_RATIO,
+  PULL_DISTANCE_CHOICES,
+  sanitizeSettings
+} = namespace;
 
 const TRACK_RANGE_RATIO = 2;
 const MAX_ATTEMPTS = 12;
+const MAX_STREAM_TOKENS = 400;
+const STREAM_NOTES = {
+  native: "wheel 이벤트의 momentum 값을 그대로 붙입니다. 초록색이 관성입니다.",
+  estimated: "이 Chrome은 momentum 값을 주지 않아, 감쇠 추정 결과를 기울임으로 붙입니다.",
+  vertical: "가로로 인정되지 않는 입력은 옅게 표시합니다."
+};
 const ACTION_LABELS = { menu: "메뉴", navigate: "한 단계" };
 const RELEASE_LABELS = {
-  threshold: "거리 도달",
   hold: "시간 도달",
   momentum: "관성 시작",
+  stillness: "당긴 채 멈춤",
   idle: "입력 멈춤"
 };
 const PHASE_LABELS = {
@@ -27,8 +38,6 @@ const elements = {
   direction: document.querySelector("#direction-label"),
   phase: document.querySelector("#live-phase"),
   fill: document.querySelector("#fill"),
-  line: document.querySelector("#line"),
-  lineLabel: document.querySelector("#line-label"),
   fillTime: document.querySelector("#fill-time"),
   lineTime: document.querySelector("#line-time"),
   lineTimeLabel: document.querySelector("#line-time-label"),
@@ -44,7 +53,9 @@ const elements = {
   lag: document.querySelector("#v-lag"),
   threshold: document.querySelector("#threshold"),
   reset: document.querySelector("#reset"),
-  attempts: document.querySelector("#attempts")
+  attempts: document.querySelector("#attempts"),
+  momentumLog: document.querySelector("#momentum-log"),
+  streamNote: document.querySelector("#stream-note")
 };
 
 const attempts = [];
@@ -92,6 +103,11 @@ elements.threshold.addEventListener("change", saveThreshold);
 elements.reset.addEventListener("click", clearAttempts);
 controller.start();
 
+// 판정 결과가 아니라 브라우저가 준 값 자체를 보여 줍니다. 손가락 구간과 관성
+// 꼬리의 경계가 어디인지 눈으로 바로 확인할 수 있습니다. controller.start()
+// 뒤에 등록해야 같은 이벤트에 대한 감쇠 추정이 이미 갱신된 상태로 읽힙니다.
+window.addEventListener("wheel", recordMomentum, { capture: true, passive: true });
+
 function buildThresholdOptions() {
   elements.threshold.replaceChildren(
     ...PULL_DISTANCE_CHOICES.map(({ value, label }) => {
@@ -131,9 +147,8 @@ function toTimePercent(ms) {
   return Math.min(100, (ms / (holdThreshold * TRACK_RANGE_RATIO)) * 100);
 }
 
+// 판정선은 시간 트랙에만 있습니다. 거리 트랙은 얼마나 움직였는지만 보여 줍니다.
 function renderTrack() {
-  elements.lineLabel.textContent = `${threshold}px`;
-  elements.line.style.left = `${toPercent(threshold)}%`;
   elements.scaleMax.textContent = `${trackRange()}px`;
   elements.lineTimeLabel.textContent = `${holdThreshold}ms`;
   elements.lineTime.style.left = "50%";
@@ -185,6 +200,48 @@ function formatCounts(counts) {
   return `손 ${counts.finger} · 보류 ${counts.settling} · 관성 ${counts.momentum}`;
 }
 
+function recordMomentum(event) {
+  if (!event.isTrusted) return;
+
+  // 151+는 이벤트마다 값을 직접 줍니다. 그 이전에는 줄 값이 없으므로 같은
+  // 이벤트에 대한 감쇠 추정 결과를 대신 붙이고 기울임으로 구분합니다.
+  const native = typeof event.momentum === "boolean";
+  const momentum = native ? event.momentum : controller.wheelPhase.momentum;
+  // 실제 판정과 같은 기준으로 가로 여부를 봅니다. 가로로 인정되지 않는
+  // 이벤트는 이 화면의 대상이 아니므로 옅게 둡니다.
+  const horizontal =
+    Math.abs(event.deltaX) > Math.abs(event.deltaY) * HORIZONTAL_RATIO;
+
+  const token = document.createElement("span");
+  token.className =
+    `${momentum ? "momentum" : "finger"}${horizontal ? "" : " vertical"}`;
+  token.textContent = String(momentum);
+  token.title = `deltaX ${event.deltaX.toFixed(1)} · deltaY ${event.deltaY.toFixed(1)}`;
+
+  if (elements.momentumLog.querySelector(".stream-empty")) {
+    elements.momentumLog.replaceChildren();
+  }
+  elements.momentumLog.classList.toggle("estimated", !native);
+  elements.momentumLog.append(token);
+
+  while (elements.momentumLog.childElementCount > MAX_STREAM_TOKENS) {
+    elements.momentumLog.firstElementChild.remove();
+  }
+  elements.momentumLog.scrollTop = elements.momentumLog.scrollHeight;
+
+  // 첫 이벤트에서 어느 방식인지 확정됩니다. 제스처를 끝내기 전에 알려 줍니다.
+  elements.engine.textContent = native ? "WheelEvent.momentum" : "감쇠 추정";
+  elements.streamNote.textContent =
+    `${native ? STREAM_NOTES.native : STREAM_NOTES.estimated} ${STREAM_NOTES.vertical}`;
+}
+
+function clearMomentumLog() {
+  const empty = document.createElement("span");
+  empty.className = "stream-empty";
+  empty.textContent = "두 손가락으로 움직여 보세요.";
+  elements.momentumLog.replaceChildren(empty);
+}
+
 function addAttempt(entry) {
   attempts.unshift(entry);
   attempts.length = Math.min(attempts.length, MAX_ATTEMPTS);
@@ -207,7 +264,7 @@ function renderMarks() {
     ...attempts.map((entry, index) => {
       const mark = document.createElement("div");
       mark.className = `mark ${entry.action}${index === 0 ? " latest" : ""}`;
-      mark.style.left = `${toPercent(entry.pulled)}%`;
+      mark.style.left = `${toTimePercent(entry.heldMs)}%`;
       mark.style.opacity = String(Math.max(0.25, 1 - index * 0.08));
       return mark;
     })
@@ -234,8 +291,8 @@ function renderAttempts() {
       detail.className = "detail";
       detail.textContent =
         `${entry.direction === "forward" ? "앞으로" : "뒤로"}` +
-        ` · ${entry.pulled}/${entry.threshold}px` +
-        ` · ${entry.heldMs}/${entry.holdThreshold}ms · ${entry.peakSpeed}px/ms` +
+        ` · ${entry.heldMs}/${entry.holdThreshold}ms` +
+        ` · ${entry.pulled}px · ${entry.peakSpeed}px/ms` +
         ` · ${RELEASE_LABELS[entry.release] ?? entry.release}` +
         ` · ${formatCounts(entry.counts)}`;
 
@@ -249,4 +306,5 @@ function clearAttempts() {
   attempts.length = 0;
   renderMarks();
   renderAttempts();
+  clearMomentumLog();
 }

@@ -25,28 +25,27 @@
           <span id="live-phase" class="phase"></span>
         </div>
 
-        <div class="track" id="track">
+        <div class="track track-time" id="track-time">
           <div class="zone zone-step"><span>한 단계 이동</span></div>
           <div class="zone zone-menu"><span>기록 메뉴</span></div>
-          <div class="fill" id="fill"></div>
-          <div class="line" id="line"><span id="line-label">150px</span></div>
+          <div class="fill" id="fill-time"></div>
+          <div class="line" id="line-time"><span id="line-time-label">180ms</span></div>
           <div class="marks" id="marks"></div>
+        </div>
+        <div class="scale">
+          <span>0</span>
+          <span id="scale-time-max">360ms</span>
+        </div>
+
+        <p class="note">판정은 당긴 시간으로만 합니다. 아래 거리는 참고용입니다.</p>
+
+        <div class="track track-reference" id="track">
+          <div class="fill" id="fill"></div>
         </div>
 
         <div class="scale">
           <span>0</span>
           <span id="scale-max">300px</span>
-        </div>
-
-        <div class="track track-time" id="track-time">
-          <div class="zone zone-step"><span>당긴 시간</span></div>
-          <div class="zone zone-menu"></div>
-          <div class="fill" id="fill-time"></div>
-          <div class="line" id="line-time"><span id="line-time-label">350ms</span></div>
-        </div>
-        <div class="scale">
-          <span>0</span>
-          <span id="scale-time-max">700ms</span>
         </div>
 
         <dl class="readout">
@@ -72,6 +71,14 @@
       <section class="attempts">
         <h2>최근 시도</h2>
         <ol id="attempts"><li class="empty">아직 시도가 없습니다.</li></ol>
+      </section>
+
+      <section class="attempts stream">
+        <h2>이벤트별 관성 값</h2>
+        <p class="note" id="stream-note">wheel 이벤트가 오는 대로 값을 그대로 붙입니다.</p>
+        <div class="momentum-log" id="momentum-log">
+          <span class="stream-empty">두 손가락으로 움직여 보세요.</span>
+        </div>
       </section>
     </main>
 

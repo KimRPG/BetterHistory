@@ -121,8 +121,14 @@ h2 { font-size: 13px; font-weight: 680; margin: 0 0 8px; }
 .mark.menu { background: #4f46e5; }
 .mark.latest { box-shadow: 0 0 0 3px rgba(15, 23, 42, .18); }
 
-.track-time { height: 34px; margin-top: 4px; }
-.track-time .zone { font-size: 9px; padding: 4px 10px; }
+/* 판정을 담당하는 시간 트랙이 기본 크기이고, 참고용 거리 트랙만 낮춥니다. */
+.track-reference { height: 22px; margin-top: 2px; }
+
+.note {
+  color: #6b7280;
+  font-size: 11px;
+  margin: 14px 0 4px;
+}
 
 .scale {
   color: #9ca3af;
@@ -191,6 +197,29 @@ h2 { font-size: 13px; font-weight: 680; margin: 0 0 8px; }
 .badge.menu { background: #e0e7ff; color: #3730a3; }
 .attempts .detail { color: #6b7280; }
 
+.stream .note { margin: -4px 0 10px; }
+.momentum-log {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.stream-empty { color: #9ca3af; font-size: 11px; }
+.momentum-log span {
+  border-radius: 3px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  padding: 0 3px;
+}
+.momentum-log .finger { background: #fdf6e3; color: #6b7280; }
+.momentum-log .momentum { background: #86e07a; color: #14532d; }
+/* 가로로 인정되지 않는 입력은 이 화면의 대상이 아니라서 옅게 둡니다. */
+.momentum-log .vertical { opacity: .45; }
+/* momentum 속성이 없는 Chrome에서는 값이 아니라 추정입니다. */
+.momentum-log.estimated span { font-style: italic; }
+
 @media (prefers-color-scheme: dark) {
   body { background: #17181b; color: #f5f6f7; }
   .stage, .controls, .attempts { background: #212328; border-color: #33363d; }
@@ -202,4 +231,6 @@ h2 { font-size: 13px; font-weight: 680; margin: 0 0 8px; }
   .attempts li { border-top-color: #303339; }
   .controls select, .controls button { background: #2b2e34; border-color: #3d4148; color: #f5f6f7; }
   .phase.momentum { background: #33363d; color: #a6acb5; }
+  .momentum-log .finger { background: #2b2e34; color: #a6acb5; }
+  .momentum-log .momentum { background: #3f8f37; color: #eafce7; }
 }

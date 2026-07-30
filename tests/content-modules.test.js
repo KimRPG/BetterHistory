@@ -207,6 +207,34 @@ for (const [script, markup] of [
   });
 }
 
+// 연습 화면이 판정 상수를 복제하면 화면 표시와 실제 동작이 조용히 어긋납니다.
+// 공유 정의에서 꺼내 쓰되, 내보내지 않은 이름을 꺼내면 undefined가 되어
+// 비교가 통째로 무력화되므로 여기서 막습니다.
+test("연습 화면이 공유 정의에서 꺼내는 값은 모두 내보내져 있다", () => {
+  const runtime = loadContentModules();
+  const source = fs.readFileSync(
+    path.join(__dirname, "..", "practice.js"),
+    "utf8"
+  );
+  const destructured = source.match(/const\s*\{([^}]+)\}\s*=\s*namespace;/);
+
+  assert.notEqual(destructured, null);
+  const names = destructured[1]
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  assert.equal(names.includes("HORIZONTAL_RATIO"), true);
+  assert.equal(runtime.namespace.HORIZONTAL_RATIO, 1.25);
+  for (const name of names) {
+    assert.notEqual(
+      runtime.namespace[name],
+      undefined,
+      `${name}을 내보내지 않았습니다`
+    );
+  }
+});
+
 test("연습 페이지는 실제 판정 코드를 그대로 불러온다", () => {
   const practiceHtml = fs.readFileSync(
     path.join(__dirname, "..", "practice.html"),

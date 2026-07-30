@@ -553,4 +553,7 @@
   }
 
   namespace.GestureController = GestureController;
+  // 연습 화면이 같은 가로 판정 기준을 쓰도록 내보냅니다. 값을 복제하면 화면
+  // 표시와 실제 판정이 조용히 어긋납니다.
+  namespace.HORIZONTAL_RATIO = HORIZONTAL_RATIO;
 })();
