@@ -1,0 +1,248 @@
+{
+  "extensionDescription": {
+    "message": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
+    "description": "Web Store listing description."
+  },
+  "actionTitle": {
+    "message": "GestureBackHistory settings",
+    "description": "Tooltip on the toolbar icon."
+  },
+  "menuTitleBack": {
+    "message": "Previous pages",
+    "description": "History menu heading when going back."
+  },
+  "menuTitleForward": {
+    "message": "Next pages",
+    "description": "History menu heading when going forward."
+  },
+  "menuClose": {
+    "message": "Close",
+    "description": "Label for the history menu close button."
+  },
+  "menuLoading": {
+    "message": "Reading this tab's history…",
+    "description": "Shown while the service worker reads the session history."
+  },
+  "menuGestureHelp": {
+    "message": "Keep pulling, move up or down, then let go",
+    "description": "Footer hint inside the history menu."
+  },
+  "menuEmptyBack": {
+    "message": "This tab has no previous page to go back to.",
+    "description": "Empty state for the back menu."
+  },
+  "menuEmptyForward": {
+    "message": "This tab has no page to go forward to.",
+    "description": "Empty state for the forward menu."
+  },
+  "menuStepPrevious": {
+    "message": "Previous",
+    "description": "Distance label for the entry one step back."
+  },
+  "menuStepsBack": {
+    "message": "$COUNT$ steps back",
+    "description": "Distance label for an entry more than one step back.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuStepNext": {
+    "message": "Next",
+    "description": "Distance label for the entry one step forward."
+  },
+  "menuStepsForward": {
+    "message": "$COUNT$ steps forward",
+    "description": "Distance label for an entry more than one step forward.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuOpenerRow": {
+    "message": "Opened this tab",
+    "description": "Distance label on the row that returns to the opening tab."
+  },
+  "untitledPage": {
+    "message": "Untitled page",
+    "description": "Fallback title for a history entry with no title."
+  },
+  "openerPageTitle": {
+    "message": "The page that opened this tab",
+    "description": "Fallback title for the opening tab when its own title is unavailable."
+  },
+  "errorGeneric": {
+    "message": "History is unavailable. Please try again in a moment.",
+    "description": "Shown instead of an unrecognized internal error."
+  },
+  "errorInvalidEntry": {
+    "message": "That history entry is not valid.",
+    "description": "The content script asked for an entry id that is not an integer."
+  },
+  "errorHistoryRead": {
+    "message": "Could not read this tab's history.",
+    "description": "Page.getNavigationHistory returned nothing usable."
+  },
+  "errorOpenerGone": {
+    "message": "Could not return to the page that opened this tab. It may have been closed.",
+    "description": "The opening tab disappeared between opening the menu and choosing the row."
+  },
+  "errorHistoryChanged": {
+    "message": "This page's history changed. Please open the menu again.",
+    "description": "The chosen entry is no longer in the expected direction."
+  },
+  "errorDebuggerDetached": {
+    "message": "The debugger was detached, so the history could not be read.",
+    "description": "The user cancelled the debugger banner or DevTools took over."
+  },
+  "errorDebuggerBusy": {
+    "message": "DevTools or another debugger is attached to this tab. Close it and try again.",
+    "description": "chrome.debugger.attach failed because something else is attached."
+  },
+  "errorProtectedPage": {
+    "message": "History cannot be opened on pages Chrome protects.",
+    "description": "The tab is a privileged page."
+  },
+  "errorTabGone": {
+    "message": "The tab was closed or is no longer available.",
+    "description": "The tab disappeared mid-operation."
+  },
+  "errorContextInvalidated": {
+    "message": "The extension was updated. Please reload this page.",
+    "description": "The old content script can no longer reach the service worker."
+  },
+  "errorHistoryLoad": {
+    "message": "Could not load this tab's history.",
+    "description": "Fallback when the worker reports a failure with no message."
+  },
+  "errorNavigate": {
+    "message": "Could not go to that page.",
+    "description": "Fallback when navigation fails with no message."
+  },
+  "thresholdShort": {
+    "message": "Short · opens with a light pull",
+    "description": "Shortest of the three menu thresholds."
+  },
+  "thresholdNormal": {
+    "message": "Normal",
+    "description": "Default menu threshold."
+  },
+  "thresholdLong": {
+    "message": "Long · needs a firm pull",
+    "description": "Longest of the three menu thresholds."
+  },
+  "popupEnabled": {
+    "message": "Gestures",
+    "description": "Master on/off toggle in the popup header."
+  },
+  "popupDirection": {
+    "message": "Back direction",
+    "description": "Which swipe direction means going back."
+  },
+  "popupDirectionRight": {
+    "message": "Swipe right",
+    "description": "Back direction option."
+  },
+  "popupDirectionLeft": {
+    "message": "Swipe left",
+    "description": "Back direction option."
+  },
+  "popupAdvanced": {
+    "message": "Advanced",
+    "description": "Label of the collapsed section in the popup."
+  },
+  "popupThreshold": {
+    "message": "Menu opens after",
+    "description": "Label for the menu threshold picker."
+  },
+  "popupPractice": {
+    "message": "Gesture practice",
+    "description": "Row that opens the practice page."
+  },
+  "popupPracticeOpen": {
+    "message": "Open",
+    "description": "Button that opens the practice page."
+  },
+  "popupDebugLog": {
+    "message": "Debug log",
+    "description": "Toggle for verbose gesture logging."
+  },
+  "popupRecentGestures": {
+    "message": "Recent gestures",
+    "description": "Heading of the debug log list."
+  },
+  "popupCopy": {
+    "message": "Copy",
+    "description": "Copies the debug log as JSON."
+  },
+  "popupClear": {
+    "message": "Clear",
+    "description": "Clears the stored debug log."
+  },
+  "popupNotice": {
+    "message": "Reload any tab that was open before you installed this. It does not work on Chrome settings, the new tab page, or the Web Store.",
+    "description": "First-run note at the bottom of the popup."
+  },
+  "statusSaved": {
+    "message": "Saved",
+    "description": "Shown after a setting is stored."
+  },
+  "statusCopied": {
+    "message": "Copied $COUNT$",
+    "description": "Shown after the debug log is copied.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "statusNothingToCopy": {
+    "message": "Nothing to copy",
+    "description": "Copy was pressed with an empty log."
+  },
+  "statusCleared": {
+    "message": "Log cleared",
+    "description": "Shown after the debug log is cleared."
+  },
+  "logEmpty": {
+    "message": "No entries yet. Try a gesture.",
+    "description": "Empty state of the debug log list."
+  },
+  "logActionMenu": {
+    "message": "Menu",
+    "description": "The gesture opened the history menu."
+  },
+  "logActionNavigate": {
+    "message": "One step",
+    "description": "The gesture moved one step."
+  },
+  "logDirectionBack": {
+    "message": "back",
+    "description": "Direction shown in a debug log row."
+  },
+  "logDirectionForward": {
+    "message": "forward",
+    "description": "Direction shown in a debug log row."
+  },
+  "logDelay": {
+    "message": "lag",
+    "description": "Prefix for the decision delay in a debug log row."
+  },
+  "popupLanguage": {
+    "message": "Language",
+    "description": "Label for the language picker in the popup."
+  },
+  "languageAuto": {
+    "message": "Follow Chrome",
+    "description": "Language picker option that follows the Chrome UI language."
+  },
+  "languageTag": {
+    "message": "en",
+    "description": "BCP 47 tag for this locale, used for the document lang attribute."
+  }
+}

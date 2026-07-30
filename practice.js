@@ -9,7 +9,8 @@ const {
   DEFAULT_SETTINGS,
   HORIZONTAL_RATIO,
   PULL_DISTANCE_CHOICES,
-  sanitizeSettings
+  sanitizeSettings,
+  t
 } = namespace;
 
 const TRACK_RANGE_RATIO = 2;
@@ -96,6 +97,9 @@ controller.menu = {
 
 buildThresholdOptions();
 void loadThreshold();
+
+// 이 화면은 한국어지만 기준 이름은 번역 대상이라 선택한 언어를 따릅니다.
+void applyLanguage();
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "sync" && changes.pullDistancePx) void loadThreshold();
 });
@@ -110,13 +114,22 @@ window.addEventListener("wheel", recordMomentum, { capture: true, passive: true 
 
 function buildThresholdOptions() {
   elements.threshold.replaceChildren(
-    ...PULL_DISTANCE_CHOICES.map(({ value, label }) => {
+    ...PULL_DISTANCE_CHOICES.map(({ value, labelKey }) => {
       const option = document.createElement("option");
       option.value = String(value);
-      option.textContent = label;
+      option.textContent = t(labelKey);
       return option;
     })
   );
+}
+
+async function applyLanguage() {
+  const stored = await chrome.storage.sync.get(DEFAULT_SETTINGS);
+  namespace.useMessages(
+    await namespace.readMessages(sanitizeSettings(stored).language)
+  );
+  buildThresholdOptions();
+  await loadThreshold();
 }
 
 async function loadThreshold() {

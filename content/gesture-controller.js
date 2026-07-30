@@ -58,6 +58,7 @@
       this.menuSelectionTimer = null;
       this.pendingMenuSelection = false;
       this.waitingForDocumentRoot = false;
+      this.appliedLanguage = null;
 
       this.menu = new namespace.HistoryMenu(namespace.historyClient, {
         onCloseRequest: () => this.closeMenu(),
@@ -94,6 +95,22 @@
 
       this.log.enabled = this.settings.debugLogging;
       this.updateNativeNavigationBlock();
+      await this.applyLanguage();
+    }
+
+    // 문구는 메뉴를 열 때에야 필요하므로, 표를 받아 오는 동안 제스처가
+    // 막히지 않습니다. 아직 못 받았으면 Chrome UI 언어로 나갑니다.
+    async applyLanguage() {
+      const language = this.settings.language;
+      if (language === this.appliedLanguage) return;
+
+      this.appliedLanguage = language;
+      namespace.useMessages(
+        language === "auto"
+          ? null
+          : await namespace.historyClient.getMessages(language)
+      );
+      this.menu.resetUi();
     }
 
     handleStorageChange(changes, areaName) {
@@ -106,6 +123,7 @@
       this.settings = sanitizeSettings(this.settings);
       this.log.enabled = this.settings.debugLogging;
       this.updateNativeNavigationBlock();
+      void this.applyLanguage();
       if (!this.settings.enabled) this.closeMenu();
     }
 

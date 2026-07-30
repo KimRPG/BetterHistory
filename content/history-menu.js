@@ -2,7 +2,7 @@
   "use strict";
 
   const namespace = globalThis.GestureBackHistory ??= {};
-  const DEFAULT_GESTURE_HELP = "당긴 채 위·아래로 선택하고 손을 떼면 이동";
+  const { t } = namespace;
   const ERROR_AUTO_DISMISS_MS = 3600;
   const TOAST_DURATION_MS = 2600;
 
@@ -54,14 +54,14 @@
           <header class="header">
             <div class="heading">
               <div class="eyebrow">Tab history</div>
-              <h2 id="gbh-title">뒤로 갈 페이지</h2>
+              <h2 id="gbh-title">${t("menuTitleBack")}</h2>
             </div>
-            <button class="close" type="button" aria-label="닫기">
+            <button class="close" type="button" aria-label="${t("menuClose")}">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
             </button>
           </header>
           <div class="list"></div>
-          <div class="gesture-help"><b aria-hidden="true">↕</b><span>${DEFAULT_GESTURE_HELP}</span></div>
+          <div class="gesture-help"><b aria-hidden="true">↕</b><span>${t("menuGestureHelp")}</span></div>
         </section>
         <div class="toast" role="status" aria-live="polite"></div>
       `;
@@ -76,6 +76,15 @@
         .querySelector(".close")
         .addEventListener("click", () => this.onCloseRequest());
       return true;
+    }
+
+    // 문구가 박힌 채로 만들어 둔 DOM이라 언어가 바뀌면 통째로 버립니다.
+    // 다음 ensure()가 새 언어로 다시 만듭니다.
+    resetUi() {
+      this.close();
+      this.host?.remove();
+      this.host = null;
+      this.shadow = null;
     }
 
     isOpen() {
@@ -137,9 +146,9 @@
         ? "Forward history"
         : "Back history";
       this.heading.textContent = direction === "forward"
-        ? "앞으로 갈 페이지"
-        : "뒤로 갈 페이지";
-      this.list.innerHTML = `<div class="state"><div class="spinner"></div>이 탭의 기록을 불러오는 중…</div>`;
+        ? t("menuTitleForward")
+        : t("menuTitleBack");
+      this.list.innerHTML = `<div class="state"><div class="spinner"></div>${t("menuLoading")}</div>`;
 
       try {
         const entries = await this.client.getEntries(direction);
@@ -242,8 +251,8 @@
 
       if (!entries.length) {
         const message = this.direction === "forward"
-          ? "이 탭에는 앞으로 갈 페이지가 없습니다."
-          : "이 탭에는 돌아갈 이전 페이지가 없습니다.";
+          ? t("menuEmptyForward")
+          : t("menuEmptyBack");
         this.renderState(message);
         return;
       }
@@ -315,10 +324,14 @@
       distance.className = "distance";
       // 링크로 열린 탭은 돌아갈 기록 대신 이 탭을 연 탭 하나를 보여 줍니다.
       distance.textContent = entry.opener
-        ? "탭을 연 페이지"
+        ? t("menuOpenerRow")
         : this.direction === "forward"
-          ? (entry.distance === 1 ? "바로 다음" : `${entry.distance}단계 후`)
-          : (entry.distance === 1 ? "직전" : `${entry.distance}단계 전`);
+          ? (entry.distance === 1
+            ? t("menuStepNext")
+            : t("menuStepsForward", [String(entry.distance)]))
+          : (entry.distance === 1
+            ? t("menuStepPrevious")
+            : t("menuStepsBack", [String(entry.distance)]));
 
       copy.append(title, url);
       button.append(mark, copy, distance);

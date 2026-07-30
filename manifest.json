@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "GestureBackHistory",
   "version": "0.4.0",
-  "description": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "minimum_chrome_version": "104",
   "permissions": [
     "debugger",
@@ -22,7 +23,7 @@
     "service_worker": "worker.js"
   },
   "action": {
-    "default_title": "GestureBackHistory settings",
+    "default_title": "__MSG_actionTitle__",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -51,6 +52,7 @@
         "content/page-styles.css"
       ],
       "js": [
+        "shared/i18n.js",
         "shared/settings.js",
         "content/menu-styles.js",
         "content/wheel-phase.js",

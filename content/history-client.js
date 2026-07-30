@@ -2,8 +2,7 @@
   "use strict";
 
   const namespace = globalThis.GestureBackHistory ??= {};
-  const CONTEXT_UNAVAILABLE_MESSAGE =
-    "확장 프로그램이 업데이트되었습니다. 이 페이지를 새로고침해 주세요.";
+  const { t } = namespace;
 
   namespace.historyClient = {
     async getEntries(direction) {
@@ -13,7 +12,7 @@
       });
 
       if (!response?.ok) {
-        throw new Error(response?.error || "탭 히스토리를 불러오지 못했습니다.");
+        throw new Error(response?.error || t("errorHistoryLoad"));
       }
 
       return response.entries || [];
@@ -27,7 +26,7 @@
       });
 
       if (!response?.ok) {
-        throw new Error(response?.error || "페이지로 이동하지 못했습니다.");
+        throw new Error(response?.error || t("errorNavigate"));
       }
     },
 
@@ -45,10 +44,24 @@
       }
 
       if (!response?.ok) {
-        throw new Error(response?.error || "페이지로 이동하지 못했습니다.");
+        throw new Error(response?.error || t("errorNavigate"));
       }
 
       return response.navigated !== false;
+    },
+
+    // 콘텐츠 스크립트는 _locales 파일을 직접 읽을 수 없어 서비스 워커에
+    // 물어봅니다. 실패하면 Chrome UI 언어로 남습니다.
+    async getMessages(language) {
+      try {
+        const response = await sendRuntimeMessage({
+          type: "GET_MESSAGES",
+          language
+        });
+        return response?.messages ?? null;
+      } catch {
+        return null;
+      }
     },
 
     async logGesture(entry) {
@@ -62,7 +75,7 @@
 
   class ExtensionContextUnavailableError extends Error {
     constructor() {
-      super(CONTEXT_UNAVAILABLE_MESSAGE);
+      super(t("errorContextInvalidated"));
       this.name = "ExtensionContextUnavailableError";
     }
   }

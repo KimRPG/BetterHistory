@@ -11,18 +11,67 @@ const workerSource = fs.readFileSync(
   "utf8"
 );
 
+
+// 문구는 _locales에만 있습니다. 목이 실제 파일을 읽어야 키가 사라진 것을
+// 테스트가 잡아냅니다. 기준 언어는 ko로 두어 단정문이 사람이 읽는 문구
+// 그대로 남게 합니다.
+function loadMessages(locale = "ko") {
+  return JSON.parse(fs.readFileSync(
+    path.join(__dirname, "..", "_locales", locale, "messages.json"),
+    "utf8"
+  ));
+}
+
+function createI18n(locale = "ko") {
+  const messages = loadMessages(locale);
+  return {
+    getMessage(key, substitutions = []) {
+      const entry = messages[key];
+      if (!entry) return "";
+
+      const list = Array.isArray(substitutions)
+        ? substitutions
+        : [substitutions];
+      return Object.entries(entry.placeholders ?? {}).reduce(
+        (text, [name, { content }]) => {
+          const index = Number(content.slice(1)) - 1;
+          return text.replaceAll(
+            new RegExp(`\\$${name}\\$`, "gi"),
+            list[index] ?? ""
+          );
+        },
+        entry.message
+      );
+    }
+  };
+}
+
 function loadWorker(history, tabErrors = {}, hooks = {}) {
   let messageListener = null;
   let detachListener = null;
   let createdListener = null;
   let removedListener = null;
+  let settingsListener = null;
   const calls = [];
   const attachedTabs = new Set();
   const tabs = new Map((hooks.tabs ?? []).map((tab) => [tab.id, tab]));
 
   const session = new Map();
+  // 팝업에서 설정을 바꾸는 것을 흉내 내려면 목이 읽는 값도 바뀌어야 합니다.
+  const settings = { ...(hooks.settings ?? {}) };
   const chrome = {
+    i18n: createI18n(),
     storage: {
+      onChanged: {
+        addListener(listener) {
+          settingsListener = listener;
+        }
+      },
+      sync: {
+        async get(defaults) {
+          return { ...defaults, ...settings };
+        }
+      },
       session: {
         async get(defaults) {
           const result = { ...defaults };
@@ -40,6 +89,7 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
     },
     runtime: {
       id: "test-extension-id",
+      getURL: (resource) => `chrome-extension://test/${resource}`,
       onMessage: {
         addListener(listener) {
           messageListener = listener;
@@ -113,18 +163,38 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
     }
   };
 
-  const context = vm.createContext({ chrome, console });
+  // 언어를 직접 고르면 워커가 그 문구 파일을 읽습니다.
+  const context = vm.createContext({
+    chrome,
+    console,
+    async fetch(url) {
+      const locale = String(url).split("/").at(-2);
+      const file = path.join(__dirname, "..", "_locales", locale, "messages.json");
+      if (!fs.existsSync(file)) return { ok: false };
+      return { ok: true, json: async () => JSON.parse(fs.readFileSync(file, "utf8")) };
+    }
+  });
+  // 서비스 워커는 importScripts로 문구 조회 함수를 불러옵니다. 같은 컨텍스트에
+  // 실행해야 worker.js가 globalThis에서 그 함수를 찾을 수 있습니다.
+  context.importScripts = (...files) => {
+    for (const file of files) {
+      const source = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+      new vm.Script(source, { filename: file }).runInContext(context);
+    }
+  };
   new vm.Script(workerSource, { filename: "worker.js" }).runInContext(context);
 
   return {
     calls,
     context,
     session,
+    settings,
     tabs,
     getMessageListener: () => messageListener,
     getDetachListener: () => detachListener,
     getCreatedListener: () => createdListener,
-    getRemovedListener: () => removedListener
+    getRemovedListener: () => removedListener,
+    getSettingsListener: () => settingsListener
   };
 }
 
@@ -723,3 +793,54 @@ function tabActions(runtime) {
     method === "activate" || method === "remove" || method === "focusWindow"
   );
 }
+
+test("고른 언어의 문구표를 콘텐츠 스크립트에 내려 준다", async () => {
+  const runtime = loadWorker(sampleHistory);
+  const listener = runtime.getMessageListener();
+  const responses = [];
+
+  for (const language of ["ja", "auto", "fr"]) {
+    listener(
+      { type: "GET_MESSAGES", language },
+      { id: "test-extension-id", tab: { id: 7 } },
+      (value) => responses.push(value)
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  const japanese = loadMessages("ja");
+  assert.equal(responses[0].messages.menuTitleBack.message,
+    japanese.menuTitleBack.message);
+  // 자동은 chrome.i18n이 이미 답이므로 내려 줄 표가 없습니다.
+  assert.equal(responses[1].messages, null);
+  // 없는 언어도 오류가 아니라 자동으로 돌아갑니다.
+  assert.equal(responses[2].messages, null);
+});
+
+test("워커가 만드는 오류 문구도 고른 언어를 따른다", async () => {
+  const runtime = loadWorker(sampleHistory, {}, { settings: { language: "en" } });
+
+  await assert.rejects(
+    runtime.context.navigateToHistoryEntry(7, 40),
+    { message: loadMessages("en").errorHistoryChanged.message }
+  );
+});
+
+test("언어 설정이 바뀌면 워커도 다시 읽는다", async () => {
+  const runtime = loadWorker(sampleHistory, {}, { settings: { language: "en" } });
+
+  await assert.rejects(
+    runtime.context.navigateToHistoryEntry(7, 40),
+    { message: loadMessages("en").errorHistoryChanged.message }
+  );
+
+  // 팝업에서 언어를 바꾸면 storage.onChanged로 알려 옵니다.
+  runtime.settings.language = "ja";
+  runtime.getSettingsListener()({ language: { newValue: "ja" } }, "sync");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  await assert.rejects(
+    runtime.context.navigateToHistoryEntry(7, 40),
+    { message: loadMessages("ja").errorHistoryChanged.message }
+  );
+});

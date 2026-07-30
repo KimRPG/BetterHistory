@@ -7,6 +7,7 @@ const test = require("node:test");
 const vm = require("node:vm");
 
 const contentFiles = [
+  "shared/i18n.js",
   "shared/settings.js",
   "content/menu-styles.js",
   "content/wheel-phase.js",
@@ -17,11 +18,47 @@ const contentFiles = [
   "content/index.js"
 ];
 
+
+// 문구는 _locales에만 있습니다. 목이 실제 파일을 읽어야 키가 사라진 것을
+// 테스트가 잡아냅니다. 기준 언어는 ko로 두어 단정문이 사람이 읽는 문구
+// 그대로 남게 합니다.
+function loadMessages(locale = "ko") {
+  return JSON.parse(fs.readFileSync(
+    path.join(__dirname, "..", "_locales", locale, "messages.json"),
+    "utf8"
+  ));
+}
+
+function createI18n(locale = "ko") {
+  const messages = loadMessages(locale);
+  return {
+    getMessage(key, substitutions = []) {
+      const entry = messages[key];
+      if (!entry) return "";
+
+      const list = Array.isArray(substitutions)
+        ? substitutions
+        : [substitutions];
+      return Object.entries(entry.placeholders ?? {}).reduce(
+        (text, [name, { content }]) => {
+          const index = Number(content.slice(1)) - 1;
+          return text.replaceAll(
+            new RegExp(`\\$${name}\\$`, "gi"),
+            list[index] ?? ""
+          );
+        },
+        entry.message
+      );
+    }
+  };
+}
+
 function loadContentModules({ scrollingElement = null, historyLength = 2 } = {}) {
   const listeners = [];
   const messages = [];
   const rootAttributes = new Set();
   const chrome = {
+    i18n: createI18n(),
     runtime: {
       getURL(resourcePath) {
         const path = resourcePath.startsWith("/")
@@ -149,7 +186,7 @@ test("favicon API를 지원하는 Chrome 버전을 최소 버전으로 선언한
 
 test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다", () => {
   const runtime = loadContentModules();
-  const { DEFAULT_SETTINGS, PULL_DISTANCE_CHOICES, sanitizeSettings } =
+  const { DEFAULT_SETTINGS, LANGUAGE_CHOICES, PULL_DISTANCE_CHOICES, sanitizeSettings } =
     runtime.namespace;
   const popupHtml = fs.readFileSync(
     path.join(__dirname, "..", "popup.html"),
@@ -178,7 +215,8 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
       gestureDirection: "left",
       pullDistancePx: 100,
       pullHoldMs: 120,
-      debugLogging: false
+      debugLogging: false,
+      language: "auto"
     }
   );
   // 판정에 쓰는 기준 시간은 저장하지 않고 선택한 단계에서 함께 끌어옵니다.
@@ -188,6 +226,19 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 150);
   // 예전 값(180px)은 더 이상 선택지가 아니므로 기본값으로 되돌아갑니다.
   assert.equal(sanitizeSettings({ pullDistancePx: 180 }).pullDistancePx, 150);
+
+  // 언어는 목록에 있는 값만 받습니다. 없는 값이 들어오면 Chrome 설정을 따릅니다.
+  assert.deepEqual(
+    [...LANGUAGE_CHOICES].map(({ value }) => value),
+    ["auto", "en", "ko", "ja", "zh_CN"]
+  );
+  assert.equal(sanitizeSettings({ language: "ja" }).language, "ja");
+  assert.equal(sanitizeSettings({ language: "fr" }).language, "auto");
+  assert.equal(sanitizeSettings(undefined).language, "auto");
+  assert.equal(popupHtml.includes('<select id="language"></select>'), true);
+  for (const { value } of LANGUAGE_CHOICES) {
+    assert.equal(popupHtml.includes(`value="${value}"`), false);
+  }
 });
 
 for (const [script, markup] of [
@@ -920,6 +971,7 @@ function createMomentumEvent(timeStamp, deltaX = -20) {
 function createGestureMenuStub(overrides = {}) {
   return {
     getSelected: () => null,
+    resetUi() {},
     hideGestureIndicator() {},
     isBusy: () => false,
     isEventFromUi: () => false,
@@ -931,3 +983,39 @@ function createGestureMenuStub(overrides = {}) {
     ...overrides
   };
 }
+
+// 언어를 바꾸면 이미 만들어 둔 메뉴 DOM에 옛 문구가 박혀 있습니다.
+test("언어를 바꾸면 문구표를 받아 오고 메뉴를 다시 만들게 한다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  let resets = 0;
+
+  controller.menu = createGestureMenuStub({ resetUi: () => { resets += 1; } });
+  controller.settings.language = "ja";
+  await controller.applyLanguage();
+
+  const asked = runtime.messages.filter((m) => m.type === "GET_MESSAGES");
+  assert.deepEqual(JSON.parse(JSON.stringify(asked)), [
+    { type: "GET_MESSAGES", language: "ja" }
+  ]);
+  assert.equal(resets, 1);
+
+  // 같은 언어로 다시 부르면 왕복하지 않습니다.
+  await controller.applyLanguage();
+  assert.equal(runtime.messages.filter((m) => m.type === "GET_MESSAGES").length, 1);
+});
+
+test("자동이면 서비스 워커에 문구를 물어보지 않는다", async () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  await controller.applyLanguage();
+
+  // chrome.i18n이 이미 Chrome UI 언어로 답합니다.
+  assert.equal(
+    runtime.messages.some((message) => message.type === "GET_MESSAGES"),
+    false
+  );
+  assert.equal(runtime.namespace.t("menuTitleBack"), "뒤로 갈 페이지");
+});

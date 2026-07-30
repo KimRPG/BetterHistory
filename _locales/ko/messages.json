@@ -1,0 +1,191 @@
+{
+  "extensionDescription": {
+    "message": "익숙한 브라우저 탐색 기능을 직관적인 제스처로 빠르게 사용하세요."
+  },
+  "actionTitle": {
+    "message": "GestureBackHistory 설정"
+  },
+  "menuTitleBack": {
+    "message": "뒤로 갈 페이지"
+  },
+  "menuTitleForward": {
+    "message": "앞으로 갈 페이지"
+  },
+  "menuClose": {
+    "message": "닫기"
+  },
+  "menuLoading": {
+    "message": "이 탭의 기록을 불러오는 중…"
+  },
+  "menuGestureHelp": {
+    "message": "당긴 채 위·아래로 선택하고 손을 떼면 이동"
+  },
+  "menuEmptyBack": {
+    "message": "이 탭에는 돌아갈 이전 페이지가 없습니다."
+  },
+  "menuEmptyForward": {
+    "message": "이 탭에는 앞으로 갈 페이지가 없습니다."
+  },
+  "menuStepPrevious": {
+    "message": "직전"
+  },
+  "menuStepsBack": {
+    "message": "$COUNT$단계 전",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuStepNext": {
+    "message": "바로 다음"
+  },
+  "menuStepsForward": {
+    "message": "$COUNT$단계 후",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuOpenerRow": {
+    "message": "탭을 연 페이지"
+  },
+  "untitledPage": {
+    "message": "제목 없는 페이지"
+  },
+  "openerPageTitle": {
+    "message": "이 탭을 연 페이지"
+  },
+  "errorGeneric": {
+    "message": "히스토리를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."
+  },
+  "errorInvalidEntry": {
+    "message": "잘못된 히스토리 항목입니다."
+  },
+  "errorHistoryRead": {
+    "message": "탭 히스토리를 읽지 못했습니다."
+  },
+  "errorOpenerGone": {
+    "message": "이 탭을 연 페이지로 돌아가지 못했습니다. 그 탭이 닫혔을 수 있습니다."
+  },
+  "errorHistoryChanged": {
+    "message": "페이지 기록이 바뀌었습니다. 메뉴를 다시 열어 주세요."
+  },
+  "errorDebuggerDetached": {
+    "message": "디버거 연결이 해제되어 히스토리를 읽지 못했습니다."
+  },
+  "errorDebuggerBusy": {
+    "message": "이 탭에 DevTools 또는 다른 디버거가 연결되어 있습니다. 닫은 뒤 다시 시도해 주세요."
+  },
+  "errorProtectedPage": {
+    "message": "Chrome이 보호하는 페이지에서는 히스토리를 열 수 없습니다."
+  },
+  "errorTabGone": {
+    "message": "탭이 닫혔거나 더 이상 사용할 수 없습니다."
+  },
+  "errorContextInvalidated": {
+    "message": "확장 프로그램이 업데이트되었습니다. 이 페이지를 새로고침해 주세요."
+  },
+  "errorHistoryLoad": {
+    "message": "탭 히스토리를 불러오지 못했습니다."
+  },
+  "errorNavigate": {
+    "message": "페이지로 이동하지 못했습니다."
+  },
+  "thresholdShort": {
+    "message": "짧게 · 살짝만 당겨도 열림"
+  },
+  "thresholdNormal": {
+    "message": "보통"
+  },
+  "thresholdLong": {
+    "message": "길게 · 확실히 당겨야 열림"
+  },
+  "popupEnabled": {
+    "message": "제스처 사용"
+  },
+  "popupDirection": {
+    "message": "뒤로가기 방향"
+  },
+  "popupDirectionRight": {
+    "message": "오른쪽으로 스와이프"
+  },
+  "popupDirectionLeft": {
+    "message": "왼쪽으로 스와이프"
+  },
+  "popupAdvanced": {
+    "message": "세부 설정"
+  },
+  "popupThreshold": {
+    "message": "기록 메뉴 열기 기준"
+  },
+  "popupPractice": {
+    "message": "제스처 연습"
+  },
+  "popupPracticeOpen": {
+    "message": "열기"
+  },
+  "popupDebugLog": {
+    "message": "디버그 로그"
+  },
+  "popupRecentGestures": {
+    "message": "최근 제스처"
+  },
+  "popupCopy": {
+    "message": "복사"
+  },
+  "popupClear": {
+    "message": "지우기"
+  },
+  "popupNotice": {
+    "message": "설치 전에 열려 있던 탭은 한 번 새로고침해 주세요. Chrome 설정·새 탭·웹 스토어에서는 동작하지 않습니다."
+  },
+  "statusSaved": {
+    "message": "저장됨"
+  },
+  "statusCopied": {
+    "message": "$COUNT$건 복사됨",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "statusNothingToCopy": {
+    "message": "복사할 기록이 없습니다"
+  },
+  "statusCleared": {
+    "message": "기록을 지웠습니다"
+  },
+  "logEmpty": {
+    "message": "아직 기록이 없습니다. 제스처를 해 보세요."
+  },
+  "logActionMenu": {
+    "message": "메뉴"
+  },
+  "logActionNavigate": {
+    "message": "한 단계"
+  },
+  "logDirectionBack": {
+    "message": "뒤로"
+  },
+  "logDirectionForward": {
+    "message": "앞으로"
+  },
+  "logDelay": {
+    "message": "지연"
+  },
+  "popupLanguage": {
+    "message": "언어"
+  },
+  "languageAuto": {
+    "message": "Chrome 설정 따름"
+  },
+  "languageTag": {
+    "message": "ko"
+  }
+}

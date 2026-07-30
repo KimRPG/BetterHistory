@@ -1,0 +1,191 @@
+{
+  "extensionDescription": {
+    "message": "使い慣れたブラウザの移動操作を、直感的なジェスチャーで素早く呼び出せます。"
+  },
+  "actionTitle": {
+    "message": "GestureBackHistory の設定"
+  },
+  "menuTitleBack": {
+    "message": "前のページ"
+  },
+  "menuTitleForward": {
+    "message": "次のページ"
+  },
+  "menuClose": {
+    "message": "閉じる"
+  },
+  "menuLoading": {
+    "message": "このタブの履歴を読み込み中…"
+  },
+  "menuGestureHelp": {
+    "message": "引いたまま上下で選び、離すと移動"
+  },
+  "menuEmptyBack": {
+    "message": "このタブには戻れる前のページがありません。"
+  },
+  "menuEmptyForward": {
+    "message": "このタブには進めるページがありません。"
+  },
+  "menuStepPrevious": {
+    "message": "直前"
+  },
+  "menuStepsBack": {
+    "message": "$COUNT$ 段階前",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuStepNext": {
+    "message": "すぐ次"
+  },
+  "menuStepsForward": {
+    "message": "$COUNT$ 段階後",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuOpenerRow": {
+    "message": "このタブを開いたページ"
+  },
+  "untitledPage": {
+    "message": "無題のページ"
+  },
+  "openerPageTitle": {
+    "message": "このタブを開いたページ"
+  },
+  "errorGeneric": {
+    "message": "履歴を利用できません。しばらくしてからもう一度お試しください。"
+  },
+  "errorInvalidEntry": {
+    "message": "無効な履歴項目です。"
+  },
+  "errorHistoryRead": {
+    "message": "タブの履歴を読み取れませんでした。"
+  },
+  "errorOpenerGone": {
+    "message": "このタブを開いたページに戻れませんでした。そのタブが閉じられた可能性があります。"
+  },
+  "errorHistoryChanged": {
+    "message": "ページの履歴が変わりました。メニューをもう一度開いてください。"
+  },
+  "errorDebuggerDetached": {
+    "message": "デバッガーの接続が解除され、履歴を読み取れませんでした。"
+  },
+  "errorDebuggerBusy": {
+    "message": "このタブに DevTools または別のデバッガーが接続されています。閉じてからもう一度お試しください。"
+  },
+  "errorProtectedPage": {
+    "message": "Chrome が保護するページでは履歴を開けません。"
+  },
+  "errorTabGone": {
+    "message": "タブが閉じられたか、利用できなくなりました。"
+  },
+  "errorContextInvalidated": {
+    "message": "拡張機能が更新されました。このページを再読み込みしてください。"
+  },
+  "errorHistoryLoad": {
+    "message": "タブの履歴を読み込めませんでした。"
+  },
+  "errorNavigate": {
+    "message": "ページに移動できませんでした。"
+  },
+  "thresholdShort": {
+    "message": "短め · 軽く引くだけで開く"
+  },
+  "thresholdNormal": {
+    "message": "標準"
+  },
+  "thresholdLong": {
+    "message": "長め · しっかり引く必要あり"
+  },
+  "popupEnabled": {
+    "message": "ジェスチャーを使う"
+  },
+  "popupDirection": {
+    "message": "戻る方向"
+  },
+  "popupDirectionRight": {
+    "message": "右にスワイプ"
+  },
+  "popupDirectionLeft": {
+    "message": "左にスワイプ"
+  },
+  "popupAdvanced": {
+    "message": "詳細設定"
+  },
+  "popupThreshold": {
+    "message": "履歴メニューを開く基準"
+  },
+  "popupPractice": {
+    "message": "ジェスチャー練習"
+  },
+  "popupPracticeOpen": {
+    "message": "開く"
+  },
+  "popupDebugLog": {
+    "message": "デバッグログ"
+  },
+  "popupRecentGestures": {
+    "message": "最近のジェスチャー"
+  },
+  "popupCopy": {
+    "message": "コピー"
+  },
+  "popupClear": {
+    "message": "消去"
+  },
+  "popupNotice": {
+    "message": "インストール前に開いていたタブは一度再読み込みしてください。Chrome の設定・新しいタブ・ウェブストアでは動作しません。"
+  },
+  "statusSaved": {
+    "message": "保存しました"
+  },
+  "statusCopied": {
+    "message": "$COUNT$ 件コピーしました",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "statusNothingToCopy": {
+    "message": "コピーする記録がありません"
+  },
+  "statusCleared": {
+    "message": "記録を消去しました"
+  },
+  "logEmpty": {
+    "message": "まだ記録がありません。ジェスチャーを試してください。"
+  },
+  "logActionMenu": {
+    "message": "メニュー"
+  },
+  "logActionNavigate": {
+    "message": "1 段階"
+  },
+  "logDirectionBack": {
+    "message": "戻る"
+  },
+  "logDirectionForward": {
+    "message": "進む"
+  },
+  "logDelay": {
+    "message": "遅延"
+  },
+  "popupLanguage": {
+    "message": "言語"
+  },
+  "languageAuto": {
+    "message": "Chrome の設定に従う"
+  },
+  "languageTag": {
+    "message": "ja"
+  }
+}

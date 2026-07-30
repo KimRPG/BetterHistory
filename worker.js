@@ -1,5 +1,10 @@
 "use strict";
 
+// 문구는 콘텐츠 스크립트와 같은 정의를 씁니다. 서비스 워커도 chrome.i18n을
+// 그대로 쓸 수 있으므로 조회 함수를 복제하지 않습니다.
+importScripts("shared/i18n.js");
+const { readMessages, t, useMessages } = globalThis.GestureBackHistory;
+
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
 const MAX_GESTURE_LOGS = 60;
@@ -7,8 +12,6 @@ const MAX_TRACKED_OPENERS = 300;
 // 실제 히스토리 항목 id는 양수라서, 이 탭을 연 탭을 가리키는 가상 항목과
 // 섞이지 않습니다.
 const OPENER_ENTRY_ID = -1;
-const GENERIC_ERROR_MESSAGE =
-  "히스토리를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 
 // 사용자에게 그대로 보여도 되는 오류입니다. 그 밖의 오류 원문은 노출하지 않습니다.
 class HistoryError extends Error {
@@ -17,6 +20,24 @@ class HistoryError extends Error {
     this.name = "HistoryError";
   }
 }
+
+// 콘텐츠 스크립트는 확장 리소스를 직접 읽지 못하므로 문구표를 여기서 읽어
+// 넘겨 줍니다. 워커 자신이 만드는 오류 문구도 같은 표를 씁니다.
+let languagePromise = null;
+
+function ensureLanguage() {
+  languagePromise ??= applyLanguage();
+  return languagePromise;
+}
+
+async function applyLanguage() {
+  const stored = await chrome.storage.sync.get({ language: "auto" });
+  useMessages(await readMessages(stored.language));
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "sync" && changes.language) languagePromise = applyLanguage();
+});
 
 const attachedTabs = new Set();
 const tabQueues = new Map();
@@ -63,6 +84,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "GET_MESSAGES") {
+    readMessages(message.language)
+      .then((messages) => sendResponse({ ok: true, messages }))
+      .catch(() => sendResponse({ ok: true, messages: null }));
+    return true;
+  }
+
   if (message?.type === "LOG_GESTURE") {
     recordGestureLog(tabId, message.entry)
       .then(() => sendResponse({ ok: true }))
@@ -72,7 +100,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "NAVIGATE_HISTORY") {
     if (!Number.isInteger(message.entryId)) {
-      sendResponse({ ok: false, error: "잘못된 히스토리 항목입니다." });
+      sendResponse({ ok: false, error: t("errorInvalidEntry") });
       return undefined;
     }
 
@@ -217,7 +245,7 @@ async function getOpenerEntry(tabId) {
   const url = cleanText(found.opener.url);
   return {
     id: OPENER_ENTRY_ID,
-    title: cleanText(found.opener.title) || url || "이 탭을 연 페이지",
+    title: cleanText(found.opener.title) || url || t("openerPageTitle"),
     url,
     distance: 1,
     opener: true
@@ -225,6 +253,8 @@ async function getOpenerEntry(tabId) {
 }
 
 async function navigateOneStep(tabId, direction = "back") {
+  await ensureLanguage();
+
   try {
     if (direction === "forward") {
       await chrome.tabs.goForward(tabId);
@@ -242,6 +272,8 @@ async function navigateOneStep(tabId, direction = "back") {
 }
 
 async function getTabHistory(tabId, direction = "back") {
+  await ensureLanguage();
+
   const entries = await readNavigationHistory(tabId, direction);
   if (entries.length || direction !== "back") return entries;
 
@@ -258,7 +290,7 @@ async function readNavigationHistory(tabId, direction) {
     );
 
     if (!history || !Array.isArray(history.entries)) {
-      throw new HistoryError("탭 히스토리를 읽지 못했습니다.");
+      throw new HistoryError(t("errorHistoryRead"));
     }
 
     const currentIndex = Number.isInteger(history.currentIndex)
@@ -274,7 +306,7 @@ async function readNavigationHistory(tabId, direction) {
     return entries
       .map((entry, index) => ({
         id: entry.id,
-        title: cleanText(entry.title) || cleanText(entry.url) || "제목 없는 페이지",
+        title: cleanText(entry.title) || cleanText(entry.url) || t("untitledPage"),
         url: cleanText(entry.url),
         distance: index + 1
       }))
@@ -284,11 +316,11 @@ async function readNavigationHistory(tabId, direction) {
 }
 
 async function navigateToHistoryEntry(tabId, entryId, direction = "back") {
+  await ensureLanguage();
+
   if (entryId === OPENER_ENTRY_ID) {
     if (direction === "back" && await returnToOpener(tabId)) return;
-    throw new HistoryError(
-      "이 탭을 연 페이지로 돌아가지 못했습니다. 그 탭이 닫혔을 수 있습니다."
-    );
+    throw new HistoryError(t("errorOpenerGone"));
   }
 
   return withDebugger(tabId, async (target) => {
@@ -307,7 +339,7 @@ async function navigateToHistoryEntry(tabId, entryId, direction = "back") {
       .some((entry) => entry.id === entryId);
 
     if (!validEntry) {
-      throw new HistoryError("페이지 기록이 바뀌었습니다. 메뉴를 다시 열어 주세요.");
+      throw new HistoryError(t("errorHistoryChanged"));
     }
 
     await chrome.debugger.sendCommand(
@@ -347,7 +379,7 @@ async function attachAndRun(tabId, operation) {
   } catch (error) {
     // 디버거 안내 배너의 "취소"나 DevTools 연결로 끊긴 경우입니다.
     if (!attachedTabs.has(tabId)) {
-      throw new HistoryError("디버거 연결이 해제되어 히스토리를 읽지 못했습니다.");
+      throw new HistoryError(t("errorDebuggerDetached"));
     }
     throw error;
   } finally {
@@ -386,18 +418,18 @@ function toErrorResponse(error) {
     console.warn("GestureBackHistory: 처리하지 못한 오류입니다.", error);
   }
 
-  return { ok: false, error: message || GENERIC_ERROR_MESSAGE };
+  return { ok: false, error: message || t("errorGeneric") };
 }
 
 function toFriendlyMessage(rawMessage) {
   if (/Another debugger|already attached|Cannot attach/i.test(rawMessage)) {
-    return "이 탭에 DevTools 또는 다른 디버거가 연결되어 있습니다. 닫은 뒤 다시 시도해 주세요.";
+    return t("errorDebuggerBusy");
   }
   if (/Cannot access|not allowed|restricted/i.test(rawMessage)) {
-    return "Chrome이 보호하는 페이지에서는 히스토리를 열 수 없습니다.";
+    return t("errorProtectedPage");
   }
   if (/No tab with given id|target closed/i.test(rawMessage)) {
-    return "탭이 닫혔거나 더 이상 사용할 수 없습니다.";
+    return t("errorTabGone");
   }
   return "";
 }

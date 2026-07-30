@@ -1,0 +1,191 @@
+{
+  "extensionDescription": {
+    "message": "用直观的手势，快速调用熟悉的浏览器导航功能。"
+  },
+  "actionTitle": {
+    "message": "GestureBackHistory 设置"
+  },
+  "menuTitleBack": {
+    "message": "可返回的页面"
+  },
+  "menuTitleForward": {
+    "message": "可前进的页面"
+  },
+  "menuClose": {
+    "message": "关闭"
+  },
+  "menuLoading": {
+    "message": "正在读取此标签页的历史记录…"
+  },
+  "menuGestureHelp": {
+    "message": "保持滑动并上下选择，松手即跳转"
+  },
+  "menuEmptyBack": {
+    "message": "此标签页没有可返回的上一页。"
+  },
+  "menuEmptyForward": {
+    "message": "此标签页没有可前进的页面。"
+  },
+  "menuStepPrevious": {
+    "message": "上一页"
+  },
+  "menuStepsBack": {
+    "message": "往前 $COUNT$ 步",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuStepNext": {
+    "message": "下一页"
+  },
+  "menuStepsForward": {
+    "message": "往后 $COUNT$ 步",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "menuOpenerRow": {
+    "message": "打开此标签页的页面"
+  },
+  "untitledPage": {
+    "message": "无标题页面"
+  },
+  "openerPageTitle": {
+    "message": "打开此标签页的页面"
+  },
+  "errorGeneric": {
+    "message": "暂时无法使用历史记录，请稍后重试。"
+  },
+  "errorInvalidEntry": {
+    "message": "无效的历史记录项。"
+  },
+  "errorHistoryRead": {
+    "message": "无法读取此标签页的历史记录。"
+  },
+  "errorOpenerGone": {
+    "message": "无法返回打开此标签页的页面，该标签页可能已关闭。"
+  },
+  "errorHistoryChanged": {
+    "message": "页面历史已变化，请重新打开菜单。"
+  },
+  "errorDebuggerDetached": {
+    "message": "调试器连接已断开，无法读取历史记录。"
+  },
+  "errorDebuggerBusy": {
+    "message": "此标签页已连接 DevTools 或其他调试器，请关闭后重试。"
+  },
+  "errorProtectedPage": {
+    "message": "在 Chrome 保护的页面上无法打开历史记录。"
+  },
+  "errorTabGone": {
+    "message": "标签页已关闭或不再可用。"
+  },
+  "errorContextInvalidated": {
+    "message": "扩展程序已更新，请重新加载此页面。"
+  },
+  "errorHistoryLoad": {
+    "message": "无法加载此标签页的历史记录。"
+  },
+  "errorNavigate": {
+    "message": "无法跳转到该页面。"
+  },
+  "thresholdShort": {
+    "message": "短 · 轻轻一拉即打开"
+  },
+  "thresholdNormal": {
+    "message": "标准"
+  },
+  "thresholdLong": {
+    "message": "长 · 需要明确用力拉"
+  },
+  "popupEnabled": {
+    "message": "启用手势"
+  },
+  "popupDirection": {
+    "message": "返回方向"
+  },
+  "popupDirectionRight": {
+    "message": "向右滑动"
+  },
+  "popupDirectionLeft": {
+    "message": "向左滑动"
+  },
+  "popupAdvanced": {
+    "message": "高级设置"
+  },
+  "popupThreshold": {
+    "message": "打开历史菜单的判定"
+  },
+  "popupPractice": {
+    "message": "手势练习"
+  },
+  "popupPracticeOpen": {
+    "message": "打开"
+  },
+  "popupDebugLog": {
+    "message": "调试日志"
+  },
+  "popupRecentGestures": {
+    "message": "最近的手势"
+  },
+  "popupCopy": {
+    "message": "复制"
+  },
+  "popupClear": {
+    "message": "清除"
+  },
+  "popupNotice": {
+    "message": "安装前已打开的标签页请刷新一次。在 Chrome 设置、新标签页和网上应用店中不起作用。"
+  },
+  "statusSaved": {
+    "message": "已保存"
+  },
+  "statusCopied": {
+    "message": "已复制 $COUNT$ 条",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "statusNothingToCopy": {
+    "message": "没有可复制的记录"
+  },
+  "statusCleared": {
+    "message": "已清除记录"
+  },
+  "logEmpty": {
+    "message": "还没有记录，试一下手势吧。"
+  },
+  "logActionMenu": {
+    "message": "菜单"
+  },
+  "logActionNavigate": {
+    "message": "一步"
+  },
+  "logDirectionBack": {
+    "message": "返回"
+  },
+  "logDirectionForward": {
+    "message": "前进"
+  },
+  "logDelay": {
+    "message": "延迟"
+  },
+  "popupLanguage": {
+    "message": "语言"
+  },
+  "languageAuto": {
+    "message": "跟随 Chrome 设置"
+  },
+  "languageTag": {
+    "message": "zh-CN"
+  }
+}

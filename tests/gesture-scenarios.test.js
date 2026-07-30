@@ -15,6 +15,41 @@ const contentFiles = JSON.parse(
   fs.readFileSync(path.join(root, "manifest.json"), "utf8")
 ).content_scripts[0].js;
 
+
+// 문구는 _locales에만 있습니다. 목이 실제 파일을 읽어야 키가 사라진 것을
+// 테스트가 잡아냅니다. 기준 언어는 ko로 두어 단정문이 사람이 읽는 문구
+// 그대로 남게 합니다.
+function loadMessages(locale = "ko") {
+  return JSON.parse(fs.readFileSync(
+    path.join(__dirname, "..", "_locales", locale, "messages.json"),
+    "utf8"
+  ));
+}
+
+function createI18n(locale = "ko") {
+  const messages = loadMessages(locale);
+  return {
+    getMessage(key, substitutions = []) {
+      const entry = messages[key];
+      if (!entry) return "";
+
+      const list = Array.isArray(substitutions)
+        ? substitutions
+        : [substitutions];
+      return Object.entries(entry.placeholders ?? {}).reduce(
+        (text, [name, { content }]) => {
+          const index = Number(content.slice(1)) - 1;
+          return text.replaceAll(
+            new RegExp(`\\$${name}\\$`, "gi"),
+            list[index] ?? ""
+          );
+        },
+        entry.message
+      );
+    }
+  };
+}
+
 function createController({ historyLength = 2 } = {}) {
   const messages = [];
   const opened = [];
@@ -23,6 +58,7 @@ function createController({ historyLength = 2 } = {}) {
   let nextTimerId = 1;
   const context = vm.createContext({
     chrome: {
+      i18n: createI18n(),
       runtime: {
         getURL: (resource) => `chrome-extension://test${resource}`,
         async sendMessage(message) {
@@ -78,6 +114,7 @@ function createController({ historyLength = 2 } = {}) {
 
   controller.menu = {
     close() { menuOpen = false; },
+    resetUi() {},
     getSelected: () => ({ entry: { id: selectedId }, button: {} }),
     hideGestureIndicator() {},
     isBusy: () => false,

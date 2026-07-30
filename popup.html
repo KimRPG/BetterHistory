@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>GestureBackHistory settings</title>
+    <title>GestureBackHistory</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
@@ -11,36 +11,41 @@
       <header class="brand">
         <span class="brand-mark" aria-hidden="true">↔</span>
         <h1>GestureBackHistory</h1>
-        <label class="switch" title="제스처 사용">
+        <label class="switch" data-i18n-title="popupEnabled">
           <input id="enabled" type="checkbox">
           <span aria-hidden="true"></span>
-          <span class="sr-only">제스처 사용</span>
+          <span class="sr-only" data-i18n="popupEnabled"></span>
         </label>
       </header>
 
       <section class="row">
-        <label for="gesture-direction">뒤로가기 방향</label>
+        <label for="gesture-direction" data-i18n="popupDirection"></label>
         <select id="gesture-direction">
-          <option value="right">오른쪽으로 스와이프</option>
-          <option value="left">왼쪽으로 스와이프</option>
+          <option value="right" data-i18n="popupDirectionRight"></option>
+          <option value="left" data-i18n="popupDirectionLeft"></option>
         </select>
       </section>
 
+      <section class="row">
+        <label for="language" data-i18n="popupLanguage"></label>
+        <select id="language"></select>
+      </section>
+
       <details class="advanced" id="advanced">
-        <summary>세부 설정</summary>
+        <summary data-i18n="popupAdvanced"></summary>
 
         <section class="row">
-          <label for="pull-distance">기록 메뉴 열기 기준</label>
+          <label for="pull-distance" data-i18n="popupThreshold"></label>
           <select id="pull-distance"></select>
         </section>
 
         <section class="row">
-          <span>제스처 연습</span>
-          <button id="open-practice" type="button" class="link-button">열기</button>
+          <span data-i18n="popupPractice"></span>
+          <button id="open-practice" type="button" class="link-button" data-i18n="popupPracticeOpen"></button>
         </section>
 
         <section class="row">
-          <label for="debug-logging">디버그 로그</label>
+          <label for="debug-logging" data-i18n="popupDebugLog"></label>
           <label class="switch">
             <input id="debug-logging" type="checkbox">
             <span aria-hidden="true"></span>
@@ -49,21 +54,20 @@
 
         <section class="log" id="log-panel" hidden>
           <div class="log-head">
-            <strong>최근 제스처</strong>
+            <strong data-i18n="popupRecentGestures"></strong>
             <div class="log-actions">
-              <button id="copy-logs" type="button">복사</button>
-              <button id="clear-logs" type="button">지우기</button>
+              <button id="copy-logs" type="button" data-i18n="popupCopy"></button>
+              <button id="clear-logs" type="button" data-i18n="popupClear"></button>
             </div>
           </div>
           <ol id="log-list" class="log-list"></ol>
         </section>
       </details>
 
-      <p class="notice">
-        설치 전에 열려 있던 탭은 한 번 새로고침해 주세요. Chrome 설정·새 탭·웹 스토어에서는 동작하지 않습니다.
-      </p>
+      <p class="notice" data-i18n="popupNotice"></p>
       <p id="status" class="status" role="status" aria-live="polite"></p>
     </main>
+    <script src="shared/i18n.js"></script>
     <script src="shared/settings.js"></script>
     <script src="popup.js"></script>
   </body>
