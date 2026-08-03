@@ -16,9 +16,22 @@
   namespace.t = (key, substitutions) => {
     const message = overrides
       ? fromTable(overrides[key], substitutions)
-      : chrome.i18n.getMessage(key, substitutions);
+      : fromChrome(key, substitutions);
     return message || key;
   };
+
+  // 확장을 새로고침하면 이미 열려 있던 페이지의 옛 콘텐츠 스크립트에서는
+  // chrome API가 전부 "Extension context invalidated"를 던집니다. 문구를
+  // 꺼내다 실패한 것이 원래 알리려던 오류를 덮어써서는 안 됩니다 —
+  // 컨텍스트가 끊겼다는 오류를 만들다가 다시 같은 오류가 나면, 조용히
+  // 넘어가야 할 자리에서 처리되지 않은 예외가 됩니다.
+  function fromChrome(key, substitutions) {
+    try {
+      return chrome.i18n.getMessage(key, substitutions);
+    } catch {
+      return "";
+    }
+  }
 
   namespace.useMessages = (table) => {
     overrides = table ?? null;

@@ -986,3 +986,22 @@ test("자동이면 서비스 워커에 문구를 물어보지 않는다", async 
   );
   assert.equal(runtime.namespace.t("menuTitleBack"), "뒤로 갈 페이지");
 });
+
+// 확장을 새로고침하면 이미 열려 있던 탭의 옛 콘텐츠 스크립트에서는 chrome
+// API가 전부 던집니다. 문구를 꺼내다 실패한 것이 원래 알리려던 오류를
+// 덮어쓰면, 조용히 넘어가야 할 자리에서 처리되지 않은 예외가 됩니다.
+test("컨텍스트가 끊겨도 문구 조회가 던지지 않는다", async () => {
+  const runtime = loadContentModules();
+  const { t, historyClient } = runtime.namespace;
+
+  runtime.chrome.i18n.getMessage = () => {
+    throw new Error("Extension context invalidated.");
+  };
+  runtime.chrome.runtime.sendMessage = () => {
+    throw new Error("Extension context invalidated.");
+  };
+
+  assert.equal(t("menuTitleBack"), "menuTitleBack");
+  // 한 단계 이동은 오류를 띄우지 않고 조용히 넘어갑니다.
+  assert.equal(await historyClient.navigateOneStep("back"), false);
+});
