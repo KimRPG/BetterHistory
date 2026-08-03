@@ -31,14 +31,15 @@
         <select id="language"></select>
       </section>
 
-      <details class="advanced" id="advanced">
-        <summary data-i18n="popupAdvanced"></summary>
-
-        <section class="row">
-          <label for="pull-distance" data-i18n="popupThreshold"></label>
-          <select id="pull-distance"></select>
-        </section>
-      </details>
+      <section class="row stack">
+        <span id="hold-still-label" data-i18n="popupThreshold"></span>
+        <div
+          id="hold-still"
+          class="segmented"
+          role="radiogroup"
+          aria-labelledby="hold-still-label"
+        ></div>
+      </section>
 
       <p class="notice" data-i18n="popupNotice"></p>
       <p id="status" class="status" role="status" aria-live="polite"></p>

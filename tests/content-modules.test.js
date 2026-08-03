@@ -185,44 +185,72 @@ test("favicon API를 지원하는 Chrome 버전을 최소 버전으로 선언한
 
 test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다", () => {
   const runtime = loadContentModules();
-  const { DEFAULT_SETTINGS, LANGUAGE_CHOICES, PULL_DISTANCE_CHOICES, sanitizeSettings } =
-    runtime.namespace;
+  const {
+    DEFAULT_SETTINGS,
+    HOLD_STILL_CHOICES,
+    LANGUAGE_CHOICES,
+    sanitizeSettings,
+    toSeconds
+  } = runtime.namespace;
   const popupHtml = fs.readFileSync(
     path.join(__dirname, "..", "popup.html"),
     "utf8"
   );
 
-  assert.deepEqual(
-    [...PULL_DISTANCE_CHOICES].map(({ value }) => value),
-    [100, 150, 220]
-  );
+  // 사용자가 고르는 것은 멈춘 뒤 기다리는 시간뿐입니다. 당김 판정 시간과
+  // 거리는 설정에 남아 있지 않습니다.
+  //
+  // 값 자체는 손에 맞춰 조정하는 것이라 고정하지 않고, 세그먼트가 왼쪽부터
+  // 짧은 순으로 놓이는지와 가운데가 기본값인지만 봅니다.
+  const holdValues = [...HOLD_STILL_CHOICES].map(({ value }) => value);
+  assert.equal(holdValues.length, 3);
+  assert.deepEqual([...holdValues].sort((a, b) => a - b), holdValues);
+  assert.equal(holdValues[1], DEFAULT_SETTINGS.holdStillMs);
+  for (const key of ["pullDistancePx", "pullHoldMs", "debugLogging"]) {
+    assert.equal(key in DEFAULT_SETTINGS, false, `${key}가 아직 설정에 있습니다`);
+  }
   assert.equal(popupHtml.includes('src="shared/settings.js"'), true);
-  // 기준 거리 목록은 공유 정의에서만 만들고 마크업에 복제하지 않습니다.
-  assert.equal(popupHtml.includes('<select id="pull-distance"></select>'), true);
-  for (const { value } of PULL_DISTANCE_CHOICES) {
+  // 선택지 목록은 공유 정의에서만 만들고 마크업에 복제하지 않습니다.
+  assert.equal(popupHtml.includes('id="hold-still"'), true);
+  for (const { value } of HOLD_STILL_CHOICES) {
     assert.equal(popupHtml.includes(`value="${value}"`), false);
   }
+  // 접어 두지 않고 세 선택지를 그대로 보여 줍니다.
+  assert.equal(popupHtml.includes("<details"), false);
+  assert.equal(popupHtml.includes('role="radiogroup"'), true);
+
   assert.deepEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
   assert.deepEqual(
     JSON.parse(JSON.stringify(sanitizeSettings({
       enabled: false,
       gestureDirection: "left",
-      pullDistancePx: "100"
+      holdStillMs: "300"
     }))),
     {
       enabled: false,
       gestureDirection: "left",
-      pullDistancePx: 100,
-      pullHoldMs: 120,
+      holdStillMs: 300,
       language: "auto"
     }
   );
-  // 판정에 쓰는 기준 시간은 저장하지 않고 선택한 단계에서 함께 끌어옵니다.
-  assert.equal(sanitizeSettings({ pullDistancePx: 220 }).pullHoldMs, 280);
-  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullHoldMs, 180);
-  assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 150);
-  // 예전 값(180px)은 더 이상 선택지가 아니므로 기본값으로 되돌아갑니다.
-  assert.equal(sanitizeSettings({ pullDistancePx: 180 }).pullDistancePx, 150);
+  // 목록에 있는 값은 그대로, 없는 값은 기본값으로 되돌아갑니다.
+  for (const value of holdValues) {
+    assert.equal(sanitizeSettings({ holdStillMs: value }).holdStillMs, value);
+  }
+  assert.equal(
+    sanitizeSettings({ holdStillMs: 999 }).holdStillMs,
+    DEFAULT_SETTINGS.holdStillMs
+  );
+  // 예전에 저장해 둔 당김 시간이 그대로 넘어오면 안 됩니다.
+  assert.equal(
+    sanitizeSettings({ holdStillMs: 180 }).holdStillMs,
+    DEFAULT_SETTINGS.holdStillMs
+  );
+
+  // 라벨에 붙는 초는 항상 소수 둘째 자리까지입니다.
+  assert.equal(toSeconds(300), "0.30");
+  assert.equal(toSeconds(450), "0.45");
+  assert.equal(toSeconds(3000), "3.00");
 
   // 언어는 목록에 있는 값만 받습니다. 없는 값이 들어오면 Chrome 설정을 따릅니다.
   assert.deepEqual(
@@ -471,26 +499,52 @@ test("기록이 없는 탭에서는 멈춰도 메뉴 대신 한 단계 이동한
   });
 });
 
-test("설정한 기준 시간을 따른다", () => {
+// 당김 판정 시간은 실제 당김 폭에 맞춘 값이라 설정에 두지 않았습니다. 사용자가
+// 고른 멈춤 시간이 여기까지 새어 들어오면 두 기준이 다시 얽힙니다.
+test("당김 판정 시간은 멈춤 설정과 무관하게 180ms로 고정이다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
 
-  controller.settings.pullHoldMs = 120;
+  controller.settings.holdStillMs = runtime.namespace.HOLD_STILL_CHOICES.at(-1).value;
   controller.menu = createGestureMenuStub({
     open: (direction) => {
       openedDirections.push(direction);
       return Promise.resolve(true);
     }
   });
-  for (let index = 0; index < 8; index += 1) {
+
+  // 176ms까지 당겨도 아직 메뉴가 아닙니다.
+  for (let index = 0; index <= 11; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
   assert.deepEqual(openedDirections, []);
 
-  controller.handleWheel(createFingerEvent(8 * 16));
+  controller.handleWheel(createFingerEvent(12 * 16));
   assert.deepEqual(openedDirections, ["back"]);
   controller.endGestureCapture();
+});
+
+test("멈춘 뒤 기다리는 시간은 설정을 따른다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  // 관성을 정확히 아는 Chrome에서는 진행 정도와 무관하게 고른 시간입니다.
+  controller.nativeMomentum = true;
+  for (const { value } of runtime.namespace.HOLD_STILL_CHOICES) {
+    controller.settings.holdStillMs = value;
+    assert.equal(controller.toIdleDelay(0.1), value);
+    assert.equal(controller.toIdleDelay(0.9), value);
+  }
+
+  // 감쇠 추정 경로에서 오래 참는 쪽은 고른 시간보다 짧아지지 않습니다.
+  controller.nativeMomentum = false;
+  controller.settings.holdStillMs = 300;
+  assert.equal(controller.toIdleDelay(0.1), 300);
+  assert.equal(controller.toIdleDelay(0.9), 1200);
+  controller.settings.holdStillMs = 3000;
+  assert.equal(controller.toIdleDelay(0.1), 3000);
+  assert.equal(controller.toIdleDelay(0.9), 3000);
 });
 
 test("아주 짧은 제스처도 한 단계 이동한다", async () => {

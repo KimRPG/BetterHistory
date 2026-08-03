@@ -6,8 +6,7 @@
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     gestureDirection: "right",
-    pullDistancePx: 150,
-    pullHoldMs: 180,
+    holdStillMs: 450,
     language: "auto"
   });
 
@@ -21,35 +20,37 @@
     Object.freeze({ value: "zh_CN", label: "简体中文" })
   ]);
 
-  // 기록 메뉴는 손가락을 대고 있는 시간(holdMs)으로만 열립니다. 당긴 거리는
-  // 판정에 쓰지 않고 인디케이터와 디버그 기록에만 씁니다. 거리를 함께 보면 크게
-  // 당겼다 놓는 동작이 손 뗌과 무관한 두 번째 기준으로 갈리기 때문입니다.
-  // value는 저장된 설정 키(pullDistancePx)와 인디케이터 눈금으로 남습니다.
-  // 화면에 보일 이름은 labelKey로만 두고 _locales에서 꺼냅니다.
-  // 250/350/500ms는 거리 기준을 보조하는 backstop이었습니다. 느리게 당기는
-  // 사람만 구제하면 됐으니 길어도 괜찮았습니다. 단독 기준이 되면 실제 당김
-  // 시간(대략 100~250ms)에 맞춰야 하므로 훨씬 짧아집니다.
-  const PULL_DISTANCE_CHOICES = Object.freeze([
-    Object.freeze({ value: 100, holdMs: 120, labelKey: "thresholdShort" }),
-    Object.freeze({ value: 150, holdMs: 180, labelKey: "thresholdNormal" }),
-    Object.freeze({ value: 220, holdMs: 280, labelKey: "thresholdLong" })
+  // 당긴 채 멈췄을 때 메뉴가 열리기까지 기다리는 시간입니다. 손가락을 대고
+  // 가만히 있으면 wheel 이벤트가 오지 않아 "쉬는 중"과 "손을 뗀 뒤"가 똑같아
+  // 보이므로, 얼마나 기다렸다 멈춤으로 볼지는 손버릇에 따라 다릅니다.
+  // 짧게 잡으면 당기다 잠깐 멈칫한 것도 메뉴가 되고, 길게 잡으면 멈춘 뒤
+  // 기다려야 합니다. 값 자체가 설정에 저장되고, 화면에 붙는 이름만 labelKey로
+  // _locales에서 꺼냅니다.
+  //
+  // 당김 판정 시간(0.18초)은 실제 당김 폭에 맞춘 값이라 손버릇으로 갈리지
+  // 않으므로 설정에 두지 않고 gesture-controller.js의 상수로 고정했습니다.
+  const HOLD_STILL_CHOICES = Object.freeze([
+    Object.freeze({ value: 300, labelKey: "thresholdShort" }),
+    Object.freeze({ value: 450, labelKey: "thresholdNormal" }),
+    Object.freeze({ value: 700, labelKey: "thresholdLong" })
   ]);
 
-  function findPullDistance(value) {
-    const distance = Number(value);
-    return PULL_DISTANCE_CHOICES.find((choice) => choice.value === distance);
+  // 0.12초처럼 사람이 읽는 초 단위로 보여 줍니다. 단위 문구는 언어마다
+  // 달라지므로 여기서는 숫자만 만듭니다.
+  function toSeconds(holdMs) {
+    return (holdMs / 1000).toFixed(2);
   }
 
   function sanitizeSettings(candidate) {
-    const choice = findPullDistance(candidate?.pullDistancePx)
-      ?? findPullDistance(DEFAULT_SETTINGS.pullDistancePx);
+    const holdMs = Number(candidate?.holdStillMs);
+    const choice = HOLD_STILL_CHOICES.some((option) => option.value === holdMs)
+      ? holdMs
+      : DEFAULT_SETTINGS.holdStillMs;
 
     return {
       enabled: candidate?.enabled !== false,
       gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
-      pullDistancePx: choice.value,
-      // 저장하지 않고 선택한 기준에서 함께 끌어옵니다.
-      pullHoldMs: choice.holdMs,
+      holdStillMs: choice,
       language: LANGUAGE_CHOICES
         .some((option) => option.value === candidate?.language)
         ? candidate.language
@@ -59,8 +60,9 @@
 
   Object.assign(namespace, {
     DEFAULT_SETTINGS,
+    HOLD_STILL_CHOICES,
     LANGUAGE_CHOICES,
-    PULL_DISTANCE_CHOICES,
-    sanitizeSettings
+    sanitizeSettings,
+    toSeconds
   });
 })();

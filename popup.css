@@ -98,19 +98,49 @@ select:focus-visible { border-color: #2563eb; outline: 2px solid rgba(37, 99, 23
 .switch input:checked + span::after { transform: translateX(15px); }
 .switch input:focus-visible + span { outline: 2px solid rgba(37, 99, 235, .45); outline-offset: 2px; }
 
-/* 자주 건드릴 일 없는 항목은 접어 둡니다. 팝업이 한눈에 들어와야 합니다. */
-.advanced { margin-top: 10px; }
-.advanced summary {
-  color: #737983;
-  cursor: pointer;
-  font-size: 11px;
-  list-style: none;
-  padding: 2px 2px 1px;
-  user-select: none;
+/* 세 선택지를 나란히 놓습니다. 라벨이 길어 한 줄에 같이 못 들어가므로
+   이 줄만 위아래로 쌓습니다. */
+.row.stack { align-items: stretch; flex-direction: column; gap: 7px; }
+
+.segmented {
+  background: #eceef1;
+  border-radius: 9px;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 2px;
 }
-.advanced summary::-webkit-details-marker { display: none; }
-.advanced summary::before { content: "▸ "; }
-.advanced[open] summary::before { content: "▾ "; }
+
+.segment { cursor: pointer; display: block; }
+.segment input { height: 1px; opacity: 0; position: absolute; width: 1px; }
+
+/* 선택 표시는 라벨이 아니라 이 상자에 그립니다. 부모를 고르려면 :has()가
+   필요한데 Chrome 105부터라, 최소 지원 버전(104)에서 조용히 빠집니다. */
+.segment-body {
+  align-items: center;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 2px;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.segment-name { font-size: 11px; font-weight: 640; }
+.segment-seconds {
+  color: #737983;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.segment:hover .segment-body { background: rgba(255, 255, 255, .55); }
+.segment input:checked + .segment-body {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .13);
+}
+.segment input:checked + .segment-body .segment-name { color: #2563eb; }
+.segment input:focus-visible + .segment-body {
+  outline: 2px solid rgba(37, 99, 235, .45);
+}
 
 .notice {
   color: #737983;
@@ -125,7 +155,15 @@ select:focus-visible { border-color: #2563eb; outline: 2px solid rgba(37, 99, 23
 
 @media (prefers-color-scheme: dark) {
   body { background: #1f2125; color: #f3f4f6; }
-  .notice, .advanced summary { color: #a9afb8; }
+  .notice, .segment-seconds { color: #a9afb8; }
   .row { background: #292c31; border-color: #3a3e45; }
   select { background-color: #222429; border-color: #464b53; color: #f2f3f5; }
+
+  .segmented { background: #1f2125; }
+  .segment:hover .segment-body { background: rgba(255, 255, 255, .07); }
+  .segment input:checked + .segment-body {
+    background: #3a3e45;
+    box-shadow: none;
+  }
+  .segment input:checked + .segment-body .segment-name { color: #7ea6ff; }
 }

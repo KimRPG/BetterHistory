@@ -2,11 +2,12 @@
 
 const {
   DEFAULT_SETTINGS,
+  HOLD_STILL_CHOICES,
   LANGUAGE_CHOICES,
-  PULL_DISTANCE_CHOICES,
   localizeDocument,
   readMessages,
   sanitizeSettings,
+  toSeconds,
   useMessages,
   t
 } = globalThis.GestureBackHistory;
@@ -14,7 +15,7 @@ const {
 const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
 const languageInput = document.querySelector("#language");
-const pullDistanceInput = document.querySelector("#pull-distance");
+const holdStillGroup = document.querySelector("#hold-still");
 const status = document.querySelector("#status");
 let statusTimer = null;
 
@@ -47,7 +48,7 @@ async function applyLanguage(language) {
 function renderLabels() {
   localizeDocument();
   fillOptions(languageInput, LANGUAGE_CHOICES);
-  fillOptions(pullDistanceInput, PULL_DISTANCE_CHOICES);
+  fillSegments(holdStillGroup, HOLD_STILL_CHOICES);
 }
 
 function fillOptions(select, choices) {
@@ -61,25 +62,63 @@ function fillOptions(select, choices) {
   );
 }
 
+// 세 선택지를 나란히 놓습니다. 이름만으로는 "짧게"가 얼마나 짧은지 알 수
+// 없으므로 초를 함께 붙여, 펼치거나 고르지 않고도 값이 보이게 합니다.
+function fillSegments(group, choices) {
+  group.replaceChildren(
+    ...choices.map(({ value, labelKey }) => {
+      const segment = document.createElement("label");
+      segment.className = "segment";
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = group.id;
+      input.value = String(value);
+      // 저장된 값을 읽어 오기 전 한 칸도 켜지지 않은 상태로 그려지면 고장난
+      // 것처럼 보입니다. 기본값을 먼저 켜 두고 applyValues가 고칩니다.
+      input.checked = value === DEFAULT_SETTINGS.holdStillMs;
+
+      const body = document.createElement("span");
+      body.className = "segment-body";
+      body.append(
+        createSpan("segment-name", t(labelKey)),
+        createSpan("segment-seconds", t("thresholdSeconds", [toSeconds(value)]))
+      );
+
+      segment.append(input, body);
+      return segment;
+    })
+  );
+}
+
+function createSpan(className, text) {
+  const span = document.createElement("span");
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
 function applyValues(settings) {
   enabledInput.checked = settings.enabled;
   directionInput.value = settings.gestureDirection;
   languageInput.value = settings.language;
-  pullDistanceInput.value = String(settings.pullDistancePx);
+  for (const input of holdStillGroup.querySelectorAll("input")) {
+    input.checked = Number(input.value) === settings.holdStillMs;
+  }
 }
 
 function currentSettings() {
   return sanitizeSettings({
     enabled: enabledInput.checked,
     gestureDirection: directionInput.value,
-    pullDistancePx: pullDistanceInput.value,
+    holdStillMs: holdStillGroup.querySelector("input:checked")?.value,
     language: languageInput.value
   });
 }
 
 enabledInput.addEventListener("change", save);
 directionInput.addEventListener("change", save);
-pullDistanceInput.addEventListener("change", save);
+holdStillGroup.addEventListener("change", save);
 
 // 목록을 다시 그리면 선택값이 지워지므로, 바꾸기 전 상태를 들고 있어야 합니다.
 languageInput.addEventListener("change", async () => {

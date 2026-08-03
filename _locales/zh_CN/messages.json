@@ -96,13 +96,13 @@
     "message": "无法跳转到该页面。"
   },
   "thresholdShort": {
-    "message": "短 · 轻轻一拉即打开"
+    "message": "短"
   },
   "thresholdNormal": {
     "message": "标准"
   },
   "thresholdLong": {
-    "message": "长 · 需要明确用力拉"
+    "message": "长"
   },
   "popupEnabled": {
     "message": "启用手势"
@@ -116,11 +116,8 @@
   "popupDirectionLeft": {
     "message": "向左滑动"
   },
-  "popupAdvanced": {
-    "message": "高级设置"
-  },
   "popupThreshold": {
-    "message": "打开历史菜单的判定"
+    "message": "停住多久后打开菜单"
   },
   "popupNotice": {
     "message": "安装前已打开的标签页请刷新一次。在 Chrome 设置、新标签页和网上应用店中不起作用。"
@@ -136,5 +133,14 @@
   },
   "languageTag": {
     "message": "zh-CN"
+  },
+  "thresholdSeconds": {
+    "message": "$SECONDS$秒",
+    "placeholders": {
+      "seconds": {
+        "content": "$1",
+        "example": "0.18"
+      }
+    }
   }
 }

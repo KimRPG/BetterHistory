@@ -96,13 +96,13 @@
     "message": "ページに移動できませんでした。"
   },
   "thresholdShort": {
-    "message": "短め · 軽く引くだけで開く"
+    "message": "短め"
   },
   "thresholdNormal": {
     "message": "標準"
   },
   "thresholdLong": {
-    "message": "長め · しっかり引く必要あり"
+    "message": "長め"
   },
   "popupEnabled": {
     "message": "ジェスチャーを使う"
@@ -116,11 +116,8 @@
   "popupDirectionLeft": {
     "message": "左にスワイプ"
   },
-  "popupAdvanced": {
-    "message": "詳細設定"
-  },
   "popupThreshold": {
-    "message": "履歴メニューを開く基準"
+    "message": "止めてからメニューが開くまで"
   },
   "popupNotice": {
     "message": "インストール前に開いていたタブは一度再読み込みしてください。Chrome の設定・新しいタブ・ウェブストアでは動作しません。"
@@ -136,5 +133,14 @@
   },
   "languageTag": {
     "message": "ja"
+  },
+  "thresholdSeconds": {
+    "message": "$SECONDS$秒",
+    "placeholders": {
+      "seconds": {
+        "content": "$1",
+        "example": "0.18"
+      }
+    }
   }
 }

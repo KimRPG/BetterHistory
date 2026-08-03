@@ -5,11 +5,14 @@
   const { DEFAULT_SETTINGS, sanitizeSettings } = namespace;
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_IDLE_MS = 190;
+  // 손가락을 계속 움직여 이 시간을 넘기면 메뉴입니다. 실제 당김 폭(대략
+  // 100~250ms) 한가운데라 손버릇에 따라 갈리지 않으므로 설정에 두지 않습니다.
+  // 사용자가 고르는 것은 "멈춘 뒤 얼마나 기다릴지"(settings.holdStillMs)입니다.
+  const PULL_HOLD_MS = 180;
   // 손을 뗐다는 확실한 신호는 관성뿐입니다. 관성 없이 입력만 끊긴 것은 "천천히
   // 놓았다"와 "아직 대고 있다"를 구분할 수 없으므로 기다리는 수밖에 없습니다.
   // 이미 상당히 당겨 둔 제스처라면 이어질 가능성이 높으니 오래 참고, 이제 막
   // 시작한 작은 제스처는 빨리 정리해 반응이 굼떠지지 않게 합니다.
-  const GESTURE_RELEASE_MS = 450;
   const GESTURE_PAUSE_MS = 1200;
   const PATIENT_PROGRESS = 0.4;
   // WheelEvent.momentum이 있으면 "관성 없이 조용해짐"이 곧 "손가락이 아직 닿아
@@ -240,7 +243,7 @@
       // 메뉴입니다. 얼마나 멀리 갔는지는 보지 않습니다 — 거리를 함께 보면 크게
       // 당겼다 놓는 동작이 "메뉴"와 "한 단계"로 갈려서, 손을 뗐는지 여부와
       // 무관한 두 번째 기준을 사용자가 감으로 익혀야 합니다.
-      if (heldMs >= this.settings.pullHoldMs) {
+      if (heldMs >= PULL_HOLD_MS) {
         const opensMenu = this.hasTabHistory();
         this.finishGesture(() => opensMenu
           ? this.openHistoryMenu(direction)
@@ -259,17 +262,19 @@
     }
 
     toProgress(heldMs) {
-      return heldMs / this.settings.pullHoldMs;
+      return heldMs / PULL_HOLD_MS;
     }
 
     // 관성으로 손 뗌을 정확히 알 수 있으면 "이어질까" 참을 이유가 없습니다.
     // 관성 없이 조용해진 것 자체가 손가락이 아직 닿아 있다는 신호이므로,
-    // 오래 붙잡아 두지 않고 곧바로 판정합니다.
+    // 오래 붙잡아 두지 않고 사용자가 고른 시간만 기다렸다 판정합니다.
+    //
+    // 감쇠 추정 경로에서 오래 참는 쪽은 사용자가 고른 시간보다 짧아지면
+    // 안 됩니다. 기다리겠다고 고른 시간을 확장이 먼저 끊어 버리는 셈입니다.
     toIdleDelay(progress) {
-      if (this.nativeMomentum || progress < PATIENT_PROGRESS) {
-        return GESTURE_RELEASE_MS;
-      }
-      return GESTURE_PAUSE_MS;
+      const chosen = this.settings.holdStillMs;
+      if (this.nativeMomentum || progress < PATIENT_PROGRESS) return chosen;
+      return Math.max(GESTURE_PAUSE_MS, chosen);
     }
 
     // 판정이 끝난 뒤에도 관성 이벤트가 한참 더 들어오므로, 입력이 잦아들 때까지

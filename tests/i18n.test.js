@@ -120,3 +120,14 @@ test("정의한 키는 모두 어딘가에서 쓰인다", () => {
     assert.equal(sources.includes(key), true, `${key}를 쓰는 곳이 없습니다`);
   }
 });
+
+// 초는 언어마다 단위가 달라서(0.18s / 0.18초 / 0.18秒) 숫자만 코드에서
+// 만들고 단위는 문구에서 붙입니다. 자리표시자가 빠지면 숫자가 통째로
+// 사라진 라벨이 나가므로 여기서 따로 확인합니다.
+test("기준 시간 라벨이 초를 자리표시자로 받는다", () => {
+  for (const locale of LOCALES) {
+    const entry = readMessages(locale).thresholdSeconds;
+    assert.match(entry.message, /\$SECONDS\$/i, `${locale}에 초가 빠졌습니다`);
+    assert.notEqual(entry.message.trim(), "$SECONDS$");
+  }
+});

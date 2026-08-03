@@ -96,13 +96,13 @@
     "message": "페이지로 이동하지 못했습니다."
   },
   "thresholdShort": {
-    "message": "짧게 · 살짝만 당겨도 열림"
+    "message": "짧게"
   },
   "thresholdNormal": {
     "message": "보통"
   },
   "thresholdLong": {
-    "message": "길게 · 확실히 당겨야 열림"
+    "message": "길게"
   },
   "popupEnabled": {
     "message": "제스처 사용"
@@ -116,11 +116,8 @@
   "popupDirectionLeft": {
     "message": "왼쪽으로 스와이프"
   },
-  "popupAdvanced": {
-    "message": "세부 설정"
-  },
   "popupThreshold": {
-    "message": "기록 메뉴 열기 기준"
+    "message": "멈춘 뒤 메뉴가 열리기까지"
   },
   "popupNotice": {
     "message": "설치 전에 열려 있던 탭은 한 번 새로고침해 주세요. Chrome 설정·새 탭·웹 스토어에서는 동작하지 않습니다."
@@ -136,5 +133,14 @@
   },
   "languageTag": {
     "message": "ko"
+  },
+  "thresholdSeconds": {
+    "message": "$SECONDS$초",
+    "placeholders": {
+      "seconds": {
+        "content": "$1",
+        "example": "0.18"
+      }
+    }
   }
 }

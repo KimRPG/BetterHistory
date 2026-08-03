@@ -124,16 +124,16 @@
     "description": "Fallback when navigation fails with no message."
   },
   "thresholdShort": {
-    "message": "Short · opens with a light pull",
-    "description": "Shortest of the three menu thresholds."
+    "message": "Short",
+    "description": "Shortest of the three hold-still durations."
   },
   "thresholdNormal": {
     "message": "Normal",
-    "description": "Default menu threshold."
+    "description": "Default hold-still duration."
   },
   "thresholdLong": {
-    "message": "Long · needs a firm pull",
-    "description": "Longest of the three menu thresholds."
+    "message": "Long",
+    "description": "Longest of the three hold-still durations."
   },
   "popupEnabled": {
     "message": "Gestures",
@@ -151,13 +151,9 @@
     "message": "Swipe left",
     "description": "Back direction option."
   },
-  "popupAdvanced": {
-    "message": "Advanced",
-    "description": "Label of the collapsed section in the popup."
-  },
   "popupThreshold": {
-    "message": "Menu opens after",
-    "description": "Label for the menu threshold picker."
+    "message": "Menu opens after holding still",
+    "description": "Label for the hold-still duration picker."
   },
   "popupNotice": {
     "message": "Reload any tab that was open before you installed this. It does not work on Chrome settings, the new tab page, or the Web Store.",
@@ -178,5 +174,15 @@
   "languageTag": {
     "message": "en",
     "description": "BCP 47 tag for this locale, used for the document lang attribute."
+  },
+  "thresholdSeconds": {
+    "message": "$SECONDS$s",
+    "description": "Hold-still duration in seconds, shown under each option name.",
+    "placeholders": {
+      "seconds": {
+        "content": "$1",
+        "example": "0.18"
+      }
+    }
   }
 }
