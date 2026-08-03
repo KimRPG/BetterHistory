@@ -20,9 +20,9 @@
   const MENU_SELECTION_RELEASE_MS = 300;
   const GESTURE_SHIFT_SCALE = 0.42;
   const GESTURE_SHIFT_MAX = 40;
-  // 당긴 거리는 판정에 쓰지 않지만 인디케이터와 디버그 기록에 남습니다. 세게
-  // 튕기면 손가락도 실제로 멀리 움직이므로, 진행 속도에 상한을 둬서 기록된
-  // 거리가 손가락 이동에 가깝게 유지되도록 합니다.
+  // 당긴 거리는 판정에 쓰지 않고 인디케이터를 미는 데에만 씁니다. 세게 튕기면
+  // 손가락도 실제로 멀리 움직이므로, 진행 속도에 상한을 둬서 표시가 손가락
+  // 이동에 가깝게 유지되도록 합니다.
   const MAX_PULL_SPEED = 2;
   const MAX_STEP_MS = 50;
   // 관성 확정에는 길어야 몇 이벤트면 충분합니다. 그보다 오래 붙잡아 둔 거리는
@@ -49,9 +49,6 @@
       // 브라우저 지원 여부이므로 제스처가 끝나도 되돌리지 않습니다.
       this.nativeMomentum = false;
       this.wheelPhase = new namespace.WheelPhaseTracker();
-      this.log = new namespace.GestureLog((entry) => {
-        void namespace.historyClient.logGesture(entry);
-      });
       this.scrollAreaCache = null;
       this.menuSelectionDistance = 0;
       this.menuSelectionUsed = false;
@@ -93,7 +90,6 @@
         this.settings = { ...DEFAULT_SETTINGS };
       }
 
-      this.log.enabled = this.settings.debugLogging;
       this.updateNativeNavigationBlock();
       await this.applyLanguage();
     }
@@ -121,7 +117,6 @@
       }
 
       this.settings = sanitizeSettings(this.settings);
-      this.log.enabled = this.settings.debugLogging;
       this.updateNativeNavigationBlock();
       void this.applyLanguage();
       if (!this.settings.enabled) this.closeMenu();
@@ -204,15 +199,6 @@
       const fingerDelta = this.limitPullSpeed(event, getFingerDelta(event, deltaX));
       const momentum = phase === "momentum";
 
-      this.log.start({
-        direction,
-        threshold: this.settings.pullDistancePx,
-        holdThreshold: this.settings.pullHoldMs,
-        at: event.timeStamp,
-        nativeMomentum: this.nativeMomentum
-      });
-      this.log.record({ phase, magnitude: absoluteX, at: event.timeStamp });
-
       if (phase !== "momentum") {
         // 손가락이 실제로 닿아 있던 구간만 시간으로 셉니다. 관성 꼬리는
         // 여기 들어오지 않으므로 "오래 당겼다"가 부풀지 않습니다.
@@ -238,7 +224,6 @@
         }
       }
 
-      const pulled = Math.abs(this.pullDistance);
       const heldMs = this.fingerStartedAt === null
         ? 0
         : this.lastFingerAt - this.fingerStartedAt;
@@ -257,13 +242,6 @@
       // 무관한 두 번째 기준을 사용자가 감으로 익혀야 합니다.
       if (heldMs >= this.settings.pullHoldMs) {
         const opensMenu = this.hasTabHistory();
-        this.log.finish({
-          action: opensMenu ? "menu" : "navigate",
-          release: "hold",
-          pulled,
-          heldMs,
-          at: event.timeStamp
-        });
         this.finishGesture(() => opensMenu
           ? this.openHistoryMenu(direction)
           : this.navigateOneStep(direction));
@@ -273,13 +251,6 @@
       // 관성이 시작됐다는 것은 손가락을 뗐다는 뜻입니다. 기준을 넘지 못했으니
       // 기다리지 않고 바로 한 단계만 이동합니다.
       if (momentum) {
-        this.log.finish({
-          action: "navigate",
-          release: "momentum",
-          pulled,
-          heldMs,
-          at: event.timeStamp
-        });
         this.finishGesture(() => this.navigateOneStep(direction));
         return;
       }
@@ -342,19 +313,12 @@
     // 으로 보고 메뉴를 엽니다. 그대로 위·아래로 고르고 손을 떼면 이동합니다.
     finishShortGesture() {
       const direction = this.gestureDirection;
-      const pulled = Math.abs(this.pullDistance);
       const heldMs = this.fingerStartedAt === null
         ? 0
         : this.lastFingerAt - this.fingerStartedAt;
       const shouldAct = !this.gestureTriggered && direction !== null;
       const opensMenu = this.isHoldingStill(heldMs) && this.hasTabHistory();
 
-      this.log.finish({
-        action: opensMenu ? "menu" : "navigate",
-        release: opensMenu ? "stillness" : "idle",
-        pulled,
-        heldMs
-      });
       this.endGestureCapture();
 
       if (!shouldAct) return;
@@ -518,7 +482,6 @@
       this.lastFingerAt = 0;
       this.sawFingerInput = false;
       this.wheelPhase.reset();
-      this.log.reset();
       this.scrollAreaCache = null;
       this.menu.hideGestureIndicator();
     }

@@ -12,8 +12,7 @@ const root = path.join(__dirname, "..");
 const LOCALES = ["en", "ko", "ja", "zh_CN"];
 const REFERENCE_LOCALE = "en";
 
-// 문구를 꺼내 쓰는 곳 전부입니다. 디버그 로그 라벨은 번역 대상이 아니라
-// 한국어로 남아 있습니다.
+// 문구를 꺼내 쓰는 곳 전부입니다.
 const SOURCE_FILES = [
   "manifest.json",
   "worker.js",
@@ -119,14 +118,5 @@ test("정의한 키는 모두 어딘가에서 쓰인다", () => {
 
   for (const key of Object.keys(readMessages(REFERENCE_LOCALE))) {
     assert.equal(sources.includes(key), true, `${key}를 쓰는 곳이 없습니다`);
-  }
-});
-
-test("번역 대상이 아닌 화면은 그대로 둔다", () => {
-  // 디버그 로그는 진단용이라 한국어로 남깁니다. 여기까지 번역 대상으로
-  // 끌어들이면 사용자가 보지 않는 문구에 작업량이 두 배로 듭니다.
-  for (const file of ["content/gesture-log.js"]) {
-    const source = fs.readFileSync(path.join(root, file), "utf8");
-    assert.match(source, /[가-힣]/, `${file}에서 한국어가 사라졌습니다`);
   }
 });

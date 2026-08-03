@@ -7,7 +7,6 @@ const { readMessages, t, useMessages } = globalThis.GestureBackHistory;
 
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
-const MAX_GESTURE_LOGS = 60;
 const MAX_TRACKED_OPENERS = 300;
 // 실제 히스토리 항목 id는 양수라서, 이 탭을 연 탭을 가리키는 가상 항목과
 // 섞이지 않습니다.
@@ -41,7 +40,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 const attachedTabs = new Set();
 const tabQueues = new Map();
-let gestureLogQueue = Promise.resolve();
 let openerQueue = Promise.resolve();
 
 chrome.debugger.onDetach.addListener((source) => {
@@ -91,13 +89,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "LOG_GESTURE") {
-    recordGestureLog(tabId, message.entry)
-      .then(() => sendResponse({ ok: true }))
-      .catch(() => sendResponse({ ok: false }));
-    return true;
-  }
-
   if (message?.type === "NAVIGATE_HISTORY") {
     if (!Number.isInteger(message.entryId)) {
       sendResponse({ ok: false, error: t("errorInvalidEntry") });
@@ -114,32 +105,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return undefined;
 });
 
-// 페이지가 이동하면 그 탭의 콘솔은 지워집니다. 서비스 워커 콘솔과 세션
-// 저장소에 남겨 두면 이동 뒤에도 기록이 남습니다.
-function recordGestureLog(tabId, entry) {
-  if (!entry || typeof entry !== "object") return Promise.resolve();
-
-  const record = { ...entry, tabId, at: new Date().toISOString() };
-  console.log("GestureBackHistory", record);
-
-  // 제스처가 연달아 들어와도 기록이 덮이지 않게 한 줄로 세워 씁니다.
-  gestureLogQueue = gestureLogQueue.then(
-    () => appendGestureLog(record),
-    () => appendGestureLog(record)
-  );
-  return gestureLogQueue;
-}
-
-async function appendGestureLog(record) {
-  const stored = await chrome.storage.session.get({ gestureLogs: [] });
-  const logs = Array.isArray(stored.gestureLogs) ? stored.gestureLogs : [];
-  await chrome.storage.session.set({
-    gestureLogs: [...logs, record].slice(-MAX_GESTURE_LOGS)
-  });
-}
-
-// 탭 관계 기록도 제스처 로그처럼 한 줄로 세워 씁니다. 탭이 연달아 열리고
-// 닫히면 읽고 쓰는 사이에 서로의 결과를 덮어씁니다.
+// 탭 관계 기록은 한 줄로 세워 씁니다. 탭이 연달아 열리고 닫히면 읽고 쓰는
+// 사이에 서로의 결과를 덮어씁니다.
 function queueOpenerWrite(update) {
   openerQueue = openerQueue.then(update, update);
   return openerQueue;

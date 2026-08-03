@@ -11,7 +11,6 @@ const contentFiles = [
   "shared/settings.js",
   "content/menu-styles.js",
   "content/wheel-phase.js",
-  "content/gesture-log.js",
   "content/history-client.js",
   "content/history-menu.js",
   "content/gesture-controller.js",
@@ -215,14 +214,12 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
       gestureDirection: "left",
       pullDistancePx: 100,
       pullHoldMs: 120,
-      debugLogging: false,
       language: "auto"
     }
   );
   // 판정에 쓰는 기준 시간은 저장하지 않고 선택한 단계에서 함께 끌어옵니다.
   assert.equal(sanitizeSettings({ pullDistancePx: 220 }).pullHoldMs, 280);
   assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullHoldMs, 180);
-  assert.equal(sanitizeSettings({ debugLogging: true }).debugLogging, true);
   assert.equal(sanitizeSettings({ pullDistancePx: 999 }).pullDistancePx, 150);
   // 예전 값(180px)은 더 이상 선택지가 아니므로 기본값으로 되돌아갑니다.
   assert.equal(sanitizeSettings({ pullDistancePx: 180 }).pullDistancePx, 150);
@@ -253,10 +250,10 @@ test("popup.js가 찾는 요소가 popup.html에 모두 있다", () => {
   }
 });
 
-// 연습 화면은 배포판에서 뺐습니다. 참조가 하나라도 남으면 팝업이 없는 파일을
-// 부르며 조용히 죽습니다.
-test("연습 화면의 흔적이 남아 있지 않다", () => {
-  for (const file of ["practice.html", "practice.js", "practice.css"]) {
+// 진단용 화면과 디버그 로그는 배포판에서 뺐습니다. 참조가 하나라도 남으면
+// 팝업이나 콘텐츠 스크립트가 없는 파일을 부르며 조용히 죽습니다.
+test("연습 화면과 디버그 로그의 흔적이 남아 있지 않다", () => {
+  for (const file of ["practice.html", "practice.js", "practice.css", "content/gesture-log.js"]) {
     assert.equal(
       fs.existsSync(path.join(__dirname, "..", file)),
       false,
@@ -264,13 +261,25 @@ test("연습 화면의 흔적이 남아 있지 않다", () => {
     );
   }
 
-  for (const file of ["manifest.json", "popup.html", "popup.js", "popup.css"]) {
+  const shipped = [
+    "manifest.json",
+    "worker.js",
+    "popup.html",
+    "popup.js",
+    "popup.css",
+    "shared/settings.js",
+    "content/history-client.js",
+    "content/gesture-controller.js"
+  ];
+  for (const file of shipped) {
     const source = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
-    assert.equal(
-      source.includes("practice"),
-      false,
-      `${file}에 practice가 남아 있습니다`
-    );
+    for (const token of ["practice", "gesture-log", "GestureLog", "LOG_GESTURE", "gestureLogs", "debugLogging"]) {
+      assert.equal(
+        source.includes(token),
+        false,
+        `${file}에 ${token}이 남아 있습니다`
+      );
+    }
   }
 });
 
@@ -828,64 +837,6 @@ test("열린 메뉴에서는 가로 제스처를 무시한다", () => {
 
   assert.equal(prevented, true);
   assert.equal(runtime.messages.length, 0);
-});
-
-test("디버그 로그를 켜면 당긴 거리와 시간을 콘솔에 남긴다", () => {
-  const runtime = loadContentModules();
-  const controller = new runtime.namespace.GestureController();
-  const logged = [];
-
-  controller.settings.debugLogging = true;
-  controller.log.enabled = true;
-  controller.menu = createGestureMenuStub();
-  controller.log.finish = new Proxy(controller.log.finish, {
-    apply(target, thisArg, args) {
-      const summary = Reflect.apply(target, thisArg, args);
-      if (summary) logged.push(summary);
-      return summary;
-    }
-  });
-
-  for (let index = 0; index < 6; index += 1) {
-    controller.handleWheel(createFingerEvent(index * 16));
-  }
-  controller.finishShortGesture();
-
-  assert.equal(logged.length, 1);
-  assert.equal(logged[0].action, "menu");
-  assert.equal(logged[0].release, "stillness");
-  assert.equal(logged[0].direction, "back");
-  assert.equal(logged[0].pulled, 120);
-  assert.equal(logged[0].pullMs, 80);
-  assert.equal(logged[0].heldMs, 80);
-  assert.equal(logged[0].holdThreshold, 180);
-  assert.deepEqual([...logged[0].samples], [20, 20, 20, 20, 20, 20]);
-
-  // 콘솔에는 사람이 읽는 형태로 나갑니다.
-  const summary = runtime.namespace.toGestureSummary(logged[0]);
-  assert.equal(summary.동작, "기록 메뉴 열기");
-  // 판정은 시간으로만 하므로 거리에는 기준을 붙이지 않습니다.
-  assert.equal(summary.진행거리, "120px");
-  assert.equal(summary.당긴시간, "80ms / 180ms (44%)");
-  assert.equal(summary.손뗌판정, "당긴 채 멈춤 (손가락 유지)");
-
-  // 페이지가 이동해도 남도록 서비스 워커로 보냅니다.
-  const sent = runtime.messages.filter((m) => m.type === "LOG_GESTURE");
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].entry.pulled, 120);
-});
-
-test("디버그 로그를 끄면 아무것도 기록하지 않는다", () => {
-  const runtime = loadContentModules();
-  const controller = new runtime.namespace.GestureController();
-
-  controller.menu = createGestureMenuStub();
-  for (let index = 0; index < 4; index += 1) {
-    controller.handleWheel(createFingerEvent(index * 16));
-  }
-
-  assert.equal(controller.log.active, false);
-  assert.equal(controller.log.counts.finger, 0);
 });
 
 test("한 단계 이동이 실패하면 토스트로 알린다", async () => {

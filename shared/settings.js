@@ -8,7 +8,6 @@
     gestureDirection: "right",
     pullDistancePx: 150,
     pullHoldMs: 180,
-    debugLogging: false,
     language: "auto"
   });
 
@@ -51,7 +50,6 @@
       pullDistancePx: choice.value,
       // 저장하지 않고 선택한 기준에서 함께 끌어옵니다.
       pullHoldMs: choice.holdMs,
-      debugLogging: candidate?.debugLogging === true,
       language: LANGUAGE_CHOICES
         .some((option) => option.value === candidate?.language)
         ? candidate.language

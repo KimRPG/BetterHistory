@@ -122,56 +122,11 @@
   "popupThreshold": {
     "message": "履歴メニューを開く基準"
   },
-  "popupDebugLog": {
-    "message": "デバッグログ"
-  },
-  "popupRecentGestures": {
-    "message": "最近のジェスチャー"
-  },
-  "popupCopy": {
-    "message": "コピー"
-  },
-  "popupClear": {
-    "message": "消去"
-  },
   "popupNotice": {
     "message": "インストール前に開いていたタブは一度再読み込みしてください。Chrome の設定・新しいタブ・ウェブストアでは動作しません。"
   },
   "statusSaved": {
     "message": "保存しました"
-  },
-  "statusCopied": {
-    "message": "$COUNT$ 件コピーしました",
-    "placeholders": {
-      "count": {
-        "content": "$1",
-        "example": "12"
-      }
-    }
-  },
-  "statusNothingToCopy": {
-    "message": "コピーする記録がありません"
-  },
-  "statusCleared": {
-    "message": "記録を消去しました"
-  },
-  "logEmpty": {
-    "message": "まだ記録がありません。ジェスチャーを試してください。"
-  },
-  "logActionMenu": {
-    "message": "メニュー"
-  },
-  "logActionNavigate": {
-    "message": "1 段階"
-  },
-  "logDirectionBack": {
-    "message": "戻る"
-  },
-  "logDirectionForward": {
-    "message": "進む"
-  },
-  "logDelay": {
-    "message": "遅延"
   },
   "popupLanguage": {
     "message": "言語"

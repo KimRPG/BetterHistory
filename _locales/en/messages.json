@@ -159,22 +159,6 @@
     "message": "Menu opens after",
     "description": "Label for the menu threshold picker."
   },
-  "popupDebugLog": {
-    "message": "Debug log",
-    "description": "Toggle for verbose gesture logging."
-  },
-  "popupRecentGestures": {
-    "message": "Recent gestures",
-    "description": "Heading of the debug log list."
-  },
-  "popupCopy": {
-    "message": "Copy",
-    "description": "Copies the debug log as JSON."
-  },
-  "popupClear": {
-    "message": "Clear",
-    "description": "Clears the stored debug log."
-  },
   "popupNotice": {
     "message": "Reload any tab that was open before you installed this. It does not work on Chrome settings, the new tab page, or the Web Store.",
     "description": "First-run note at the bottom of the popup."
@@ -182,48 +166,6 @@
   "statusSaved": {
     "message": "Saved",
     "description": "Shown after a setting is stored."
-  },
-  "statusCopied": {
-    "message": "Copied $COUNT$",
-    "description": "Shown after the debug log is copied.",
-    "placeholders": {
-      "count": {
-        "content": "$1",
-        "example": "12"
-      }
-    }
-  },
-  "statusNothingToCopy": {
-    "message": "Nothing to copy",
-    "description": "Copy was pressed with an empty log."
-  },
-  "statusCleared": {
-    "message": "Log cleared",
-    "description": "Shown after the debug log is cleared."
-  },
-  "logEmpty": {
-    "message": "No entries yet. Try a gesture.",
-    "description": "Empty state of the debug log list."
-  },
-  "logActionMenu": {
-    "message": "Menu",
-    "description": "The gesture opened the history menu."
-  },
-  "logActionNavigate": {
-    "message": "One step",
-    "description": "The gesture moved one step."
-  },
-  "logDirectionBack": {
-    "message": "back",
-    "description": "Direction shown in a debug log row."
-  },
-  "logDirectionForward": {
-    "message": "forward",
-    "description": "Direction shown in a debug log row."
-  },
-  "logDelay": {
-    "message": "lag",
-    "description": "Prefix for the decision delay in a debug log row."
   },
   "popupLanguage": {
     "message": "Language",

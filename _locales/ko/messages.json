@@ -122,56 +122,11 @@
   "popupThreshold": {
     "message": "기록 메뉴 열기 기준"
   },
-  "popupDebugLog": {
-    "message": "디버그 로그"
-  },
-  "popupRecentGestures": {
-    "message": "최근 제스처"
-  },
-  "popupCopy": {
-    "message": "복사"
-  },
-  "popupClear": {
-    "message": "지우기"
-  },
   "popupNotice": {
     "message": "설치 전에 열려 있던 탭은 한 번 새로고침해 주세요. Chrome 설정·새 탭·웹 스토어에서는 동작하지 않습니다."
   },
   "statusSaved": {
     "message": "저장됨"
-  },
-  "statusCopied": {
-    "message": "$COUNT$건 복사됨",
-    "placeholders": {
-      "count": {
-        "content": "$1",
-        "example": "12"
-      }
-    }
-  },
-  "statusNothingToCopy": {
-    "message": "복사할 기록이 없습니다"
-  },
-  "statusCleared": {
-    "message": "기록을 지웠습니다"
-  },
-  "logEmpty": {
-    "message": "아직 기록이 없습니다. 제스처를 해 보세요."
-  },
-  "logActionMenu": {
-    "message": "메뉴"
-  },
-  "logActionNavigate": {
-    "message": "한 단계"
-  },
-  "logDirectionBack": {
-    "message": "뒤로"
-  },
-  "logDirectionForward": {
-    "message": "앞으로"
-  },
-  "logDelay": {
-    "message": "지연"
   },
   "popupLanguage": {
     "message": "언어"

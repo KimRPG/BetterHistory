@@ -11,19 +11,10 @@ const {
   t
 } = globalThis.GestureBackHistory;
 
-const ACTION_KEYS = {
-  menu: "logActionMenu",
-  navigate: "logActionNavigate"
-};
-
 const enabledInput = document.querySelector("#enabled");
 const directionInput = document.querySelector("#gesture-direction");
 const languageInput = document.querySelector("#language");
 const pullDistanceInput = document.querySelector("#pull-distance");
-const debugLoggingInput = document.querySelector("#debug-logging");
-const advanced = document.querySelector("#advanced");
-const logPanel = document.querySelector("#log-panel");
-const logList = document.querySelector("#log-list");
 const status = document.querySelector("#status");
 let statusTimer = null;
 
@@ -40,9 +31,6 @@ async function initialize() {
     await applyLanguage(settings.language);
     renderLabels();
     applyValues(settings);
-    // 디버그 로그를 켜 둔 사람은 그걸 보려고 팝업을 엽니다. 접어 두지 않습니다.
-    advanced.open = settings.debugLogging;
-    await refreshLogs();
   } catch (error) {
     showStatus(error instanceof Error ? error.message : String(error), true);
   }
@@ -78,7 +66,6 @@ function applyValues(settings) {
   directionInput.value = settings.gestureDirection;
   languageInput.value = settings.language;
   pullDistanceInput.value = String(settings.pullDistancePx);
-  debugLoggingInput.checked = settings.debugLogging;
 }
 
 function currentSettings() {
@@ -86,7 +73,6 @@ function currentSettings() {
     enabled: enabledInput.checked,
     gestureDirection: directionInput.value,
     pullDistancePx: pullDistanceInput.value,
-    debugLogging: debugLoggingInput.checked,
     language: languageInput.value
   });
 }
@@ -94,10 +80,6 @@ function currentSettings() {
 enabledInput.addEventListener("change", save);
 directionInput.addEventListener("change", save);
 pullDistanceInput.addEventListener("change", save);
-debugLoggingInput.addEventListener("change", async () => {
-  await save();
-  await refreshLogs();
-});
 
 // 목록을 다시 그리면 선택값이 지워지므로, 바꾸기 전 상태를 들고 있어야 합니다.
 languageInput.addEventListener("change", async () => {
@@ -106,82 +88,12 @@ languageInput.addEventListener("change", async () => {
   await applyLanguage(settings.language);
   renderLabels();
   applyValues(settings);
-  await refreshLogs();
 });
-
-document.querySelector("#copy-logs").addEventListener("click", copyLogs);
-document.querySelector("#clear-logs").addEventListener("click", clearLogs);
 
 async function save() {
   try {
     await chrome.storage.sync.set(currentSettings());
     showStatus(t("statusSaved"));
-  } catch (error) {
-    showStatus(error instanceof Error ? error.message : String(error), true);
-  }
-}
-
-async function readLogs() {
-  const stored = await chrome.storage.session.get({ gestureLogs: [] });
-  return Array.isArray(stored.gestureLogs) ? stored.gestureLogs : [];
-}
-
-// 페이지가 이동하면 그 탭의 콘솔은 지워지므로, 서비스 워커가 모아 둔 기록을
-// 여기서 보여 줍니다.
-async function refreshLogs() {
-  logPanel.hidden = !debugLoggingInput.checked;
-  if (logPanel.hidden) return;
-
-  const logs = await readLogs();
-  if (!logs.length) {
-    const empty = document.createElement("li");
-    empty.className = "log-empty";
-    empty.textContent = t("logEmpty");
-    logList.replaceChildren(empty);
-    return;
-  }
-
-  logList.replaceChildren(
-    ...logs.slice().reverse().map((entry) => {
-      const item = document.createElement("li");
-      const action = document.createElement("span");
-      action.className = `log-action ${entry.action}`;
-      action.textContent = ACTION_KEYS[entry.action]
-        ? t(ACTION_KEYS[entry.action])
-        : entry.action;
-      const direction = entry.direction === "forward"
-        ? t("logDirectionForward")
-        : t("logDirectionBack");
-      item.append(
-        action,
-        ` ${direction}` +
-        ` · ${entry.heldMs}/${entry.holdThreshold}ms · ${entry.pulled}px` +
-        ` · ${t("logDelay")} ${entry.decisionLagMs}ms`
-      );
-      return item;
-    })
-  );
-}
-
-async function copyLogs() {
-  try {
-    const logs = await readLogs();
-    if (!logs.length) {
-      showStatus(t("statusNothingToCopy"), true);
-      return;
-    }
-    await navigator.clipboard.writeText(JSON.stringify(logs, null, 2));
-    showStatus(t("statusCopied", [String(logs.length)]));
-  } catch (error) {
-    showStatus(error instanceof Error ? error.message : String(error), true);
-  }
-}
-
-async function clearLogs() {
-  try {
-    await chrome.storage.session.remove("gestureLogs");
-    await refreshLogs();
-    showStatus(t("statusCleared"));
   } catch (error) {
     showStatus(error instanceof Error ? error.message : String(error), true);
   }

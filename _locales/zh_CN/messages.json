@@ -122,56 +122,11 @@
   "popupThreshold": {
     "message": "打开历史菜单的判定"
   },
-  "popupDebugLog": {
-    "message": "调试日志"
-  },
-  "popupRecentGestures": {
-    "message": "最近的手势"
-  },
-  "popupCopy": {
-    "message": "复制"
-  },
-  "popupClear": {
-    "message": "清除"
-  },
   "popupNotice": {
     "message": "安装前已打开的标签页请刷新一次。在 Chrome 设置、新标签页和网上应用店中不起作用。"
   },
   "statusSaved": {
     "message": "已保存"
-  },
-  "statusCopied": {
-    "message": "已复制 $COUNT$ 条",
-    "placeholders": {
-      "count": {
-        "content": "$1",
-        "example": "12"
-      }
-    }
-  },
-  "statusNothingToCopy": {
-    "message": "没有可复制的记录"
-  },
-  "statusCleared": {
-    "message": "已清除记录"
-  },
-  "logEmpty": {
-    "message": "还没有记录，试一下手势吧。"
-  },
-  "logActionMenu": {
-    "message": "菜单"
-  },
-  "logActionNavigate": {
-    "message": "一步"
-  },
-  "logDirectionBack": {
-    "message": "返回"
-  },
-  "logDirectionForward": {
-    "message": "前进"
-  },
-  "logDelay": {
-    "message": "延迟"
   },
   "popupLanguage": {
     "message": "语言"

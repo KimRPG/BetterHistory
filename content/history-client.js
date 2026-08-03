@@ -62,14 +62,6 @@
       } catch {
         return null;
       }
-    },
-
-    async logGesture(entry) {
-      try {
-        await sendRuntimeMessage({ type: "LOG_GESTURE", entry });
-      } catch {
-        // 디버그 로그가 실패해도 제스처 동작에는 영향을 주지 않습니다.
-      }
     }
   };
 
