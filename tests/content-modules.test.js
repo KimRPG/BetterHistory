@@ -241,73 +241,35 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   }
 });
 
-for (const [script, markup] of [
-  ["popup.js", "popup.html"],
-  ["practice.js", "practice.html"]
-]) {
-  test(`${script}가 찾는 요소가 ${markup}에 모두 있다`, () => {
-    const source = fs.readFileSync(path.join(__dirname, "..", script), "utf8");
-    const html = fs.readFileSync(path.join(__dirname, "..", markup), "utf8");
-    const ids = [...source.matchAll(/querySelector\("#([\w-]+)"\)/g)]
-      .map(([, id]) => id);
+test("popup.js가 찾는 요소가 popup.html에 모두 있다", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "popup.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "popup.html"), "utf8");
+  const ids = [...source.matchAll(/querySelector\("#([\w-]+)"\)/g)]
+    .map(([, id]) => id);
 
-    assert.equal(ids.length > 0, true);
-    for (const id of ids) {
-      assert.equal(html.includes(`id="${id}"`), true, `#${id}가 없습니다`);
-    }
-  });
-}
-
-// 연습 화면이 판정 상수를 복제하면 화면 표시와 실제 동작이 조용히 어긋납니다.
-// 공유 정의에서 꺼내 쓰되, 내보내지 않은 이름을 꺼내면 undefined가 되어
-// 비교가 통째로 무력화되므로 여기서 막습니다.
-test("연습 화면이 공유 정의에서 꺼내는 값은 모두 내보내져 있다", () => {
-  const runtime = loadContentModules();
-  const source = fs.readFileSync(
-    path.join(__dirname, "..", "practice.js"),
-    "utf8"
-  );
-  const destructured = source.match(/const\s*\{([^}]+)\}\s*=\s*namespace;/);
-
-  assert.notEqual(destructured, null);
-  const names = destructured[1]
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-
-  assert.equal(names.includes("HORIZONTAL_RATIO"), true);
-  assert.equal(runtime.namespace.HORIZONTAL_RATIO, 1.25);
-  for (const name of names) {
-    assert.notEqual(
-      runtime.namespace[name],
-      undefined,
-      `${name}을 내보내지 않았습니다`
-    );
+  assert.equal(ids.length > 0, true);
+  for (const id of ids) {
+    assert.equal(html.includes(`id="${id}"`), true, `#${id}가 없습니다`);
   }
 });
 
-test("연습 페이지는 실제 판정 코드를 그대로 불러온다", () => {
-  const practiceHtml = fs.readFileSync(
-    path.join(__dirname, "..", "practice.html"),
-    "utf8"
-  );
-  const loaded = [...practiceHtml.matchAll(/<script src="([^"]+)"><\/script>/g)]
-    .map(([, src]) => src);
-
-  // 연습 결과가 실제 동작과 어긋나면 안 되므로 판정 모듈을 복제하지 않고
-  // 콘텐츠 스크립트를 그대로 씁니다.
-  for (const file of ["shared/settings.js", "content/wheel-phase.js", "content/gesture-log.js", "content/gesture-controller.js"]) {
-    assert.equal(loaded.includes(file), true, `${file}을 불러오지 않습니다`);
-  }
-  // index.js를 부르면 컨트롤러가 두 개 생깁니다.
-  assert.equal(loaded.includes("content/index.js"), false);
-  assert.equal(loaded.at(-1), "practice.js");
-
-  for (const file of loaded) {
+// 연습 화면은 배포판에서 뺐습니다. 참조가 하나라도 남으면 팝업이 없는 파일을
+// 부르며 조용히 죽습니다.
+test("연습 화면의 흔적이 남아 있지 않다", () => {
+  for (const file of ["practice.html", "practice.js", "practice.css"]) {
     assert.equal(
       fs.existsSync(path.join(__dirname, "..", file)),
-      true,
-      `${file}이 없습니다`
+      false,
+      `${file}이 아직 있습니다`
+    );
+  }
+
+  for (const file of ["manifest.json", "popup.html", "popup.js", "popup.css"]) {
+    const source = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+    assert.equal(
+      source.includes("practice"),
+      false,
+      `${file}에 practice가 남아 있습니다`
     );
   }
 });

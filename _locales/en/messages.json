@@ -159,14 +159,6 @@
     "message": "Menu opens after",
     "description": "Label for the menu threshold picker."
   },
-  "popupPractice": {
-    "message": "Gesture practice",
-    "description": "Row that opens the practice page."
-  },
-  "popupPracticeOpen": {
-    "message": "Open",
-    "description": "Button that opens the practice page."
-  },
   "popupDebugLog": {
     "message": "Debug log",
     "description": "Toggle for verbose gesture logging."

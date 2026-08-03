@@ -122,12 +122,6 @@
   "popupThreshold": {
     "message": "打开历史菜单的判定"
   },
-  "popupPractice": {
-    "message": "手势练习"
-  },
-  "popupPracticeOpen": {
-    "message": "打开"
-  },
   "popupDebugLog": {
     "message": "调试日志"
   },

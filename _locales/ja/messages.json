@@ -122,12 +122,6 @@
   "popupThreshold": {
     "message": "履歴メニューを開く基準"
   },
-  "popupPractice": {
-    "message": "ジェスチャー練習"
-  },
-  "popupPracticeOpen": {
-    "message": "開く"
-  },
   "popupDebugLog": {
     "message": "デバッグログ"
   },

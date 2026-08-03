@@ -172,17 +172,3 @@ select:focus-visible { border-color: #2563eb; outline: 2px solid rgba(37, 99, 23
 .log-list .log-action.menu { color: #2563eb; }
 .log-list .log-action.ignored { color: #9ca3af; }
 .log-list .log-empty { color: #9ca3af; }
-
-.link-button {
-  background: #2563eb;
-  border: 0;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  flex: 0 0 auto;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 650;
-  padding: 6px 12px;
-}
-.link-button:hover { background: #1d4ed8; }

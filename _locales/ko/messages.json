@@ -122,12 +122,6 @@
   "popupThreshold": {
     "message": "기록 메뉴 열기 기준"
   },
-  "popupPractice": {
-    "message": "제스처 연습"
-  },
-  "popupPracticeOpen": {
-    "message": "열기"
-  },
   "popupDebugLog": {
     "message": "디버그 로그"
   },
