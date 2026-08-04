@@ -104,8 +104,11 @@
   "thresholdLong": {
     "message": "長め"
   },
-  "popupEnabled": {
-    "message": "ジェスチャーを使う"
+  "popupSite": {
+    "message": "このサイトで使う"
+  },
+  "popupSiteUnavailable": {
+    "message": "このページでは使えません"
   },
   "popupDirection": {
     "message": "戻る方向"

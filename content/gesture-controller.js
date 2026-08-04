@@ -2,7 +2,8 @@
   "use strict";
 
   const namespace = globalThis.GestureBackHistory ??= {};
-  const { DEFAULT_SETTINGS, sanitizeSettings } = namespace;
+  const { DEFAULT_SETTINGS, isSiteDisabled, sanitizeSettings, toSiteKey } =
+    namespace;
   const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
   const GESTURE_IDLE_MS = 190;
   // 손가락을 계속 움직여 이 시간을 넘기면 메뉴입니다. 실제 당김 폭(대략
@@ -40,6 +41,9 @@
   class GestureController {
     constructor() {
       this.settings = { ...DEFAULT_SETTINGS };
+      // 이 문서의 호스트명은 바뀌지 않습니다. 다른 사이트로 이동하면 문서가
+      // 새로 만들어지고 콘텐츠 스크립트도 다시 실행되므로, 한 번만 읽습니다.
+      this.site = toSiteKey(window.location?.href ?? "");
       this.gestureTriggered = false;
       this.gestureDirection = null;
       this.gestureIdleTimer = null;
@@ -122,7 +126,14 @@
       this.settings = sanitizeSettings(this.settings);
       this.updateNativeNavigationBlock();
       void this.applyLanguage();
-      if (!this.settings.enabled) this.closeMenu();
+      if (!this.isActiveHere()) this.closeMenu();
+    }
+
+    // 이 사이트가 제외 목록에 있으면 확장은 아무것도 하지 않습니다. 제스처를
+    // 무시하는 데에서 그치지 않고 Chrome 기본 가로 탐색 차단도 함께 풀어야
+    // 합니다. 안 그러면 껐는데 브라우저 원래 스와이프까지 죽습니다.
+    isActiveHere() {
+      return !isSiteDisabled(this.settings, this.site);
     }
 
     updateNativeNavigationBlock() {
@@ -139,7 +150,7 @@
         return;
       }
 
-      root.toggleAttribute(NAVIGATION_BLOCK_ATTRIBUTE, this.settings.enabled);
+      root.toggleAttribute(NAVIGATION_BLOCK_ATTRIBUTE, this.isActiveHere());
     }
 
     handleDocumentReady() {
@@ -148,7 +159,7 @@
     }
 
     handleWheel(event) {
-      if (!this.settings.enabled || !event.isTrusted || event.ctrlKey) return;
+      if (!this.isActiveHere() || !event.isTrusted || event.ctrlKey) return;
 
       const deltaX = toPixels(event.deltaX, event.deltaMode, "x");
       const deltaY = toPixels(event.deltaY, event.deltaMode, "y");

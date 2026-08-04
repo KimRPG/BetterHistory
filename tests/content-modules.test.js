@@ -52,7 +52,11 @@ function createI18n(locale = "ko") {
   };
 }
 
-function loadContentModules({ scrollingElement = null, historyLength = 2 } = {}) {
+function loadContentModules({
+  scrollingElement = null,
+  historyLength = 2,
+  url = "https://example.com/docs"
+} = {}) {
   const listeners = [];
   const messages = [];
   const rootAttributes = new Set();
@@ -89,6 +93,7 @@ function loadContentModules({ scrollingElement = null, historyLength = 2 } = {})
     innerHeight: 800,
     innerWidth: 1200,
     history: { length: historyLength },
+    location: new URL(url),
     addEventListener(type, listener) {
       listeners.push({ type, listener });
     }
@@ -206,7 +211,7 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   assert.equal(holdValues.length, 3);
   assert.deepEqual([...holdValues].sort((a, b) => a - b), holdValues);
   assert.equal(holdValues[1], DEFAULT_SETTINGS.holdStillMs);
-  for (const key of ["pullDistancePx", "pullHoldMs", "debugLogging"]) {
+  for (const key of ["pullDistancePx", "pullHoldMs", "debugLogging", "enabled"]) {
     assert.equal(key in DEFAULT_SETTINGS, false, `${key}가 아직 설정에 있습니다`);
   }
   assert.equal(popupHtml.includes('src="shared/settings.js"'), true);
@@ -219,18 +224,23 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   assert.equal(popupHtml.includes("<details"), false);
   assert.equal(popupHtml.includes('role="radiogroup"'), true);
 
+  // 전역 켜기/끄기 자리에 사이트별 토글이 들어갔습니다.
+  assert.equal(popupHtml.includes('id="site-enabled"'), true);
+  assert.equal(popupHtml.includes('id="enabled"'), false);
+
   assert.deepEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
   assert.deepEqual(
     JSON.parse(JSON.stringify(sanitizeSettings({
       enabled: false,
       gestureDirection: "left",
-      holdStillMs: "300"
+      holdStillMs: "300",
+      disabledSites: ["news.example.com"]
     }))),
     {
-      enabled: false,
       gestureDirection: "left",
       holdStillMs: 300,
-      language: "auto"
+      language: "auto",
+      disabledSites: ["news.example.com"]
     }
   );
   // 목록에 있는 값은 그대로, 없는 값은 기본값으로 되돌아갑니다.
@@ -264,6 +274,43 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   for (const { value } of LANGUAGE_CHOICES) {
     assert.equal(popupHtml.includes(`value="${value}"`), false);
   }
+});
+
+test("제외 목록은 호스트명만 남기고 콘텐츠 스크립트가 못 도는 곳은 걸러 낸다", () => {
+  const { isSiteDisabled, sanitizeSettings, toSiteKey } = loadContentModules().namespace;
+
+  // 스킴과 경로는 키에 넣지 않습니다. 넣으면 같은 사이트가 http와 https로,
+  // /a와 /b로 갈라져 사용자가 끈 것과 실제로 꺼지는 곳이 어긋납니다.
+  assert.equal(toSiteKey("https://www.handong.edu/handongin/"), "www.handong.edu");
+  assert.equal(toSiteKey("http://WWW.Handong.EDU/x?y=1"), "www.handong.edu");
+  // chrome://은 hostname이 그럴듯하게 나오지만 콘텐츠 스크립트가 돌지 않습니다.
+  assert.equal(toSiteKey("chrome://extensions/"), "");
+  assert.equal(toSiteKey("chrome://newtab/"), "");
+  assert.equal(toSiteKey("file:///Users/me/page.html"), "");
+  assert.equal(toSiteKey(""), "");
+  assert.equal(toSiteKey(undefined), "");
+
+  // 저장된 목록은 빈 값과 중복을 걸러 내고, 문자열이 아닌 것은 버립니다.
+  assert.deepEqual(
+    [...sanitizeSettings({
+      disabledSites: ["A.com", "a.com", " b.com ", "", 7, null]
+    }).disabledSites],
+    ["a.com", "b.com"]
+  );
+  assert.deepEqual([...sanitizeSettings({ disabledSites: "a.com" }).disabledSites], []);
+
+  // sync 저장소 한도를 넘기지 않도록 상한을 두고, 최근에 끈 것을 남깁니다.
+  const many = Array.from({ length: 320 }, (_, index) => `s${index}.com`);
+  const capped = sanitizeSettings({ disabledSites: many }).disabledSites;
+  assert.equal(capped.length, 300);
+  assert.equal(capped.at(-1), "s319.com");
+
+  const settings = sanitizeSettings({ disabledSites: ["a.com"] });
+  assert.equal(isSiteDisabled(settings, "a.com"), true);
+  assert.equal(isSiteDisabled(settings, "b.com"), false);
+  // 호스트명을 못 얻은 탭이 목록의 빈 항목과 우연히 맞아떨어지면 안 됩니다.
+  assert.equal(isSiteDisabled(settings, ""), false);
+  assert.equal(isSiteDisabled(sanitizeSettings({ disabledSites: [""] }), ""), false);
 });
 
 test("popup.js가 찾는 요소가 popup.html에 모두 있다", () => {
@@ -326,19 +373,73 @@ test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {
   assert.equal(favicon.searchParams.get("size"), "32");
 });
 
-test("활성 상태에 따라 Chrome 기본 가로 탐색을 차단한다", async () => {
-  const runtime = loadContentModules();
+// 제외한 사이트에서는 제스처를 무시하는 것으로 끝나지 않습니다. Chrome 기본
+// 가로 탐색을 막아 두는 속성도 함께 풀어야, 껐을 때 브라우저 원래 스와이프가
+// 돌아옵니다.
+test("사이트를 제외하면 Chrome 기본 가로 탐색 차단도 함께 푼다", async () => {
+  const runtime = loadContentModules({ url: "https://example.com/docs" });
   const attribute = "data-gesture-back-history-navigation";
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(runtime.rootAttributes.has(attribute), true);
 
   const storageListener = runtime.listeners.find(({ type }) => type === "storage");
-  storageListener.listener({ enabled: { newValue: false } }, "sync");
+  storageListener.listener(
+    { disabledSites: { newValue: ["example.com"] } },
+    "sync"
+  );
   assert.equal(runtime.rootAttributes.has(attribute), false);
 
-  storageListener.listener({ enabled: { newValue: true } }, "sync");
+  storageListener.listener({ disabledSites: { newValue: [] } }, "sync");
   assert.equal(runtime.rootAttributes.has(attribute), true);
+});
+
+test("제외한 사이트에서는 제스처가 아무 일도 하지 않는다", () => {
+  const runtime = loadContentModules({ url: "https://example.com/docs" });
+  const controller = new runtime.namespace.GestureController();
+  const opened = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction) => {
+      opened.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  controller.settings = runtime.namespace.sanitizeSettings({
+    disabledSites: ["example.com"]
+  });
+
+  let prevented = false;
+  for (let index = 0; index <= 12; index += 1) {
+    const event = createFingerEvent(index * 16);
+    event.preventDefault = () => {
+      prevented = true;
+    };
+    controller.handleWheel(event);
+  }
+
+  assert.deepEqual(opened, []);
+  assert.equal(runtime.messages.length, 0);
+  // 페이지의 스크롤을 확장이 가로채지 않아야 Chrome 기본 동작이 그대로 돕니다.
+  assert.equal(prevented, false);
+
+  // 다른 사이트는 같은 설정에서도 평소대로 동작합니다.
+  const elsewhere = loadContentModules({ url: "https://other.example/docs" });
+  const active = new elsewhere.namespace.GestureController();
+  active.menu = createGestureMenuStub({
+    open: (direction) => {
+      opened.push(direction);
+      return Promise.resolve(true);
+    }
+  });
+  active.settings = elsewhere.namespace.sanitizeSettings({
+    disabledSites: ["example.com"]
+  });
+  for (let index = 0; index <= 12; index += 1) {
+    active.handleWheel(createFingerEvent(index * 16));
+  }
+  assert.deepEqual(opened, ["back"]);
+  active.endGestureCapture();
 });
 
 test("히스토리 클라이언트가 방향과 항목 ID를 전달한다", async () => {

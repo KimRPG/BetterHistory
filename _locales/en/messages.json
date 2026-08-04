@@ -135,9 +135,13 @@
     "message": "Long",
     "description": "Longest of the three hold-still durations."
   },
-  "popupEnabled": {
-    "message": "Gestures",
-    "description": "Master on/off toggle in the popup header."
+  "popupSite": {
+    "message": "Use on this site",
+    "description": "Per-site on/off for the page in the active tab."
+  },
+  "popupSiteUnavailable": {
+    "message": "Not available on this page",
+    "description": "Shown instead of a hostname when the active tab is a page the extension cannot run on."
   },
   "popupDirection": {
     "message": "Back direction",

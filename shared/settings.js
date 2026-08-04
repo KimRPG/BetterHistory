@@ -4,11 +4,16 @@
   const namespace = globalThis.GestureBackHistory ??= {};
 
   const DEFAULT_SETTINGS = Object.freeze({
-    enabled: true,
     gestureDirection: "right",
     holdStillMs: 450,
-    language: "auto"
+    language: "auto",
+    disabledSites: Object.freeze([])
   });
+
+  // sync 저장소는 항목 하나가 8KB를 넘으면 통째로 거부합니다. 호스트명 하나가
+  // 넉넉잡아 30바이트라 300개면 여유가 있고, 그보다 많이 끄는 사람은 확장을
+  // 통째로 끄는 편이 낫습니다.
+  const MAX_DISABLED_SITES = 300;
 
   // 언어 이름은 번역하지 않습니다. 지금 읽을 수 없는 언어로 적혀 있으면
   // 자기 언어를 찾을 수 없기 때문입니다. "자동"만 현재 언어로 보여 줍니다.
@@ -41,6 +46,41 @@
     return (holdMs / 1000).toFixed(2);
   }
 
+  // 제외 여부는 호스트명만 봅니다. 스킴이나 경로까지 따지면 같은 사이트가
+  // http와 https로, /a와 /b로 갈라져 사용자가 끈 것과 실제로 꺼지는 곳이
+  // 어긋납니다. chrome://이나 새 탭은 hostname이 그럴듯하게 나오지만
+  // (chrome://extensions → "extensions") 콘텐츠 스크립트가 아예 돌지 않는
+  // 곳이므로 스킴에서 걸러 빈 문자열로 돌려보냅니다.
+  function toSiteKey(rawUrl) {
+    try {
+      const { protocol, hostname } = new URL(rawUrl);
+      if (protocol !== "http:" && protocol !== "https:") return "";
+      return hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  }
+
+  function isSiteDisabled(settings, hostname) {
+    const site = typeof hostname === "string"
+      ? hostname.trim().toLowerCase()
+      : "";
+    return site !== "" && settings.disabledSites.includes(site);
+  }
+
+  function sanitizeSites(candidate) {
+    if (!Array.isArray(candidate)) return [];
+
+    const sites = new Set();
+    for (const value of candidate) {
+      const site = typeof value === "string" ? value.trim().toLowerCase() : "";
+      if (site) sites.add(site);
+    }
+    // 상한을 넘으면 오래 전에 끈 것부터 밀어냅니다. 최근에 끈 사이트가
+    // 사용자가 기억하는 것입니다.
+    return [...sites].slice(-MAX_DISABLED_SITES);
+  }
+
   function sanitizeSettings(candidate) {
     const holdMs = Number(candidate?.holdStillMs);
     const choice = HOLD_STILL_CHOICES.some((option) => option.value === holdMs)
@@ -48,13 +88,13 @@
       : DEFAULT_SETTINGS.holdStillMs;
 
     return {
-      enabled: candidate?.enabled !== false,
       gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
       holdStillMs: choice,
       language: LANGUAGE_CHOICES
         .some((option) => option.value === candidate?.language)
         ? candidate.language
-        : "auto"
+        : "auto",
+      disabledSites: sanitizeSites(candidate?.disabledSites)
     };
   }
 
@@ -62,7 +102,9 @@
     DEFAULT_SETTINGS,
     HOLD_STILL_CHOICES,
     LANGUAGE_CHOICES,
+    isSiteDisabled,
     sanitizeSettings,
-    toSeconds
+    toSeconds,
+    toSiteKey
   });
 })();

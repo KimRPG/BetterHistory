@@ -11,12 +11,22 @@
       <header class="brand">
         <span class="brand-mark" aria-hidden="true">↔</span>
         <h1>GestureBackHistory</h1>
-        <label class="switch" data-i18n-title="popupEnabled">
-          <input id="enabled" type="checkbox">
-          <span aria-hidden="true"></span>
-          <span class="sr-only" data-i18n="popupEnabled"></span>
-        </label>
       </header>
+
+      <section class="row" id="site-row">
+        <span class="site-label">
+          <span data-i18n="popupSite"></span>
+          <span id="site-host" class="site-host"></span>
+        </span>
+        <label class="switch">
+          <!-- 저장된 목록을 읽어 오기 전에 꺼진 채로 그려지면 켜져 있는
+               사이트가 잠깐 꺼진 것처럼 보입니다. 대부분의 사이트가 켜져
+               있으므로 켜 두고 시작하고 renderSite()가 고칩니다. -->
+          <input id="site-enabled" type="checkbox" checked>
+          <span aria-hidden="true"></span>
+          <span class="sr-only" data-i18n="popupSite"></span>
+        </label>
+      </section>
 
       <section class="row">
         <label for="gesture-direction" data-i18n="popupDirection"></label>

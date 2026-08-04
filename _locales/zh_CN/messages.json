@@ -104,8 +104,11 @@
   "thresholdLong": {
     "message": "长"
   },
-  "popupEnabled": {
-    "message": "启用手势"
+  "popupSite": {
+    "message": "在此网站上启用"
+  },
+  "popupSiteUnavailable": {
+    "message": "此页面不可用"
   },
   "popupDirection": {
     "message": "返回方向"
