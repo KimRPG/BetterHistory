@@ -81,10 +81,13 @@
     start() {
       void this.loadSettings();
       chrome.storage.onChanged.addListener(this.handleStorageChange);
-      window.addEventListener("wheel", this.handleWheel, {
-        capture: true,
-        passive: false
-      });
+      // 캡처가 아니라 버블 단계입니다. 지도처럼 두 손가락 입력을 직접 쓰는
+      // 영역은 휠 이벤트의 전파를 끊거나 기본 동작을 막는데, 캡처 단계에서
+      // 먼저 받아 버리면 그 표시를 볼 수 없습니다. 페이지 처리기가 먼저 돌게
+      // 두면 그런 영역의 이벤트는 여기까지 오지 않거나 defaultPrevented가
+      // 찍혀서 옵니다. 기본 동작인 가로 스크롤은 전파가 다 끝난 뒤에
+      // 일어나므로, 버블 단계에서 막아도 늦지 않습니다.
+      window.addEventListener("wheel", this.handleWheel, { passive: false });
       window.addEventListener("keydown", this.handleKeydown, true);
       window.addEventListener("pointerdown", this.handleOutsidePointer, true);
     }
@@ -185,6 +188,15 @@
       }
 
       if (this.menu.isEventFromUi(event)) return;
+
+      // 지도나 화이트보드처럼 두 손가락 입력을 직접 쓰는 영역은 휠을 자기 것으로
+      // 가져갑니다. 사이트가 아니라 영역 단위로 물러나야 지도 밖에서는 제스처가
+      // 그대로 동작합니다. 시작해 둔 제스처가 있으면 판정까지 가지 않고 접습니다
+      // — 페이지가 가져간 입력으로 페이지를 옮겨 버리면 안 됩니다.
+      if (event.defaultPrevented) {
+        if (this.gestureDirection !== null) this.endGestureCapture();
+        return;
+      }
 
       if (!horizontal || absoluteX < 0.5) return;
 

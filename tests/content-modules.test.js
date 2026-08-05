@@ -94,8 +94,8 @@ function loadContentModules({
     innerWidth: 1200,
     history: { length: historyLength },
     location: new URL(url),
-    addEventListener(type, listener) {
-      listeners.push({ type, listener });
+    addEventListener(type, listener, options) {
+      listeners.push({ type, listener, options });
     }
   };
   const document = {
@@ -785,6 +785,64 @@ test("같은 제스처 안에서는 스크롤 영역 판정을 다시 계산하�
   controller.endGestureCapture();
 });
 
+// 캡처 단계에서 먼저 받아 버리면 페이지가 그 이벤트를 쓸 생각이었는지 알 수
+// 없습니다. 지도 영역을 알아보는 것이 전부 이 등록 순서에 걸려 있습니다.
+test("휠은 캡처가 아니라 버블 단계에서 듣는다", () => {
+  const runtime = loadContentModules();
+  const wheel = runtime.listeners.find(({ type }) => type === "wheel");
+
+  assert.equal(wheel.options.capture ?? false, false);
+  assert.equal(wheel.options.passive, false);
+});
+
+test("지도처럼 페이지가 가져가는 영역에서만 물러나고 그 밖에서는 그대로 동작한다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  let preventedOverMap = false;
+  let preventedOutside = false;
+
+  controller.menu = createGestureMenuStub();
+
+  // 지도 위. 지도가 이미 기본 동작을 막아 둔 이벤트입니다.
+  const overMap = createFingerEvent(0, -20);
+  overMap.defaultPrevented = true;
+  overMap.preventDefault = () => {
+    preventedOverMap = true;
+  };
+  controller.handleWheel(overMap);
+
+  assert.equal(preventedOverMap, false);
+  assert.equal(controller.gestureDirection, null);
+
+  // 같은 페이지의 지도 밖. 아무도 가져가지 않았으므로 그대로 제스처입니다.
+  const outside = createFingerEvent(1000, -20);
+  outside.preventDefault = () => {
+    preventedOutside = true;
+  };
+  controller.handleWheel(outside);
+
+  assert.equal(preventedOutside, true);
+  assert.equal(controller.gestureDirection, "back");
+  controller.endGestureCapture();
+});
+
+test("제스처 도중 페이지가 입력을 가져가면 이동하지 않고 접는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createFingerEvent(0, -20));
+  assert.equal(controller.gestureDirection, "back");
+
+  const owned = createFingerEvent(20, -20);
+  owned.defaultPrevented = true;
+  controller.handleWheel(owned);
+
+  assert.equal(controller.gestureDirection, null);
+  assert.equal(controller.gestureIdleTimer, null);
+  assert.equal(runtime.messages.length, 0);
+});
+
 test("페이지 단위 휠 값은 축에 맞는 크기로 환산한다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
@@ -1017,6 +1075,7 @@ function createWheelEvent(timeStamp, deltaX = -8, deltaY = 0) {
     clientY: 400,
     composedPath: () => [],
     ctrlKey: false,
+    defaultPrevented: false,
     deltaMode: 0,
     deltaX,
     deltaY,
