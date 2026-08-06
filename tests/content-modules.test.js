@@ -211,13 +211,7 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   assert.equal(holdValues.length, 3);
   assert.deepEqual([...holdValues].sort((a, b) => a - b), holdValues);
   assert.equal(holdValues[1], DEFAULT_SETTINGS.holdStillMs);
-  for (const key of [
-    "pullDistancePx",
-    "pullHoldMs",
-    "debugLogging",
-    "enabled",
-    "gestureDirection"
-  ]) {
+  for (const key of ["pullDistancePx", "pullHoldMs", "debugLogging", "enabled"]) {
     assert.equal(key in DEFAULT_SETTINGS, false, `${key}가 아직 설정에 있습니다`);
   }
   assert.equal(popupHtml.includes('src="shared/settings.js"'), true);
@@ -233,8 +227,6 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
   // 전역 켜기/끄기 자리에 사이트별 토글이 들어갔습니다.
   assert.equal(popupHtml.includes('id="site-enabled"'), true);
   assert.equal(popupHtml.includes('id="enabled"'), false);
-  // 방향은 Chrome 기본 스와이프를 그대로 따르므로 고를 것이 없습니다.
-  assert.equal(popupHtml.includes('id="gesture-direction"'), false);
 
   assert.deepEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
   assert.deepEqual(
@@ -245,6 +237,7 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
       disabledSites: ["news.example.com"]
     }))),
     {
+      gestureDirection: "left",
       holdStillMs: 300,
       language: "auto",
       disabledSites: ["news.example.com"]
@@ -848,17 +841,6 @@ test("제스처 도중 페이지가 입력을 가져가면 이동하지 않고 �
   assert.equal(controller.gestureDirection, null);
   assert.equal(controller.gestureIdleTimer, null);
   assert.equal(runtime.messages.length, 0);
-});
-
-// 예전 버전에서 방향을 바꿔 뒀어도 Chrome 기본 스와이프와 어긋나면 안 됩니다.
-test("저장돼 있던 방향 설정은 무시하고 Chrome 기본 스와이프를 따른다", () => {
-  const runtime = loadContentModules();
-  const controller = new runtime.namespace.GestureController();
-
-  controller.settings.gestureDirection = "left";
-
-  assert.equal(controller.getHistoryDirection(-20), "back");
-  assert.equal(controller.getHistoryDirection(20), "forward");
 });
 
 test("페이지 단위 휠 값은 축에 맞는 크기로 환산한다", () => {

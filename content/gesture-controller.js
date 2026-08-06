@@ -380,12 +380,11 @@
       }
     }
 
-    // Chrome 기본 스와이프와 같은 부호를 씁니다. 둘 다 같은 wheel 값을 보고
-    // 판단하므로, macOS 스크롤 방향 설정을 뒤집으면 Chrome 기본 동작과 함께
-    // 뒤집혀 서로 어긋나지 않습니다. 방향을 따로 고르게 하면 그 설정을 건드린
-    // 사람만 두 동작이 반대가 됩니다.
     getHistoryDirection(deltaX) {
-      return deltaX < 0 ? "back" : "forward";
+      const isBackDirection = this.settings.gestureDirection === "right"
+        ? deltaX < 0
+        : deltaX > 0;
+      return isBackDirection ? "back" : "forward";
     }
 
     // 휠 이벤트마다 합성 경로 전체의 계산된 스타일을 읽는 것은 비싸므로,

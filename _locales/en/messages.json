@@ -143,6 +143,18 @@
     "message": "Not available on this page",
     "description": "Shown instead of a hostname when the active tab is a page the extension cannot run on."
   },
+  "popupDirection": {
+    "message": "Back direction",
+    "description": "Which swipe direction means going back."
+  },
+  "popupDirectionRight": {
+    "message": "Swipe right",
+    "description": "Back direction option."
+  },
+  "popupDirectionLeft": {
+    "message": "Swipe left",
+    "description": "Back direction option."
+  },
   "popupThreshold": {
     "message": "Menu opens after holding still",
     "description": "Label for the hold-still duration picker."

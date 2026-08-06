@@ -110,6 +110,15 @@
   "popupSiteUnavailable": {
     "message": "사용할 수 없는 페이지"
   },
+  "popupDirection": {
+    "message": "뒤로가기 방향"
+  },
+  "popupDirectionRight": {
+    "message": "오른쪽으로 스와이프"
+  },
+  "popupDirectionLeft": {
+    "message": "왼쪽으로 스와이프"
+  },
   "popupThreshold": {
     "message": "멈춘 뒤 메뉴가 열리기까지"
   },
