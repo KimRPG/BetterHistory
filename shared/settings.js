@@ -4,7 +4,6 @@
   const namespace = globalThis.GestureBackHistory ??= {};
 
   const DEFAULT_SETTINGS = Object.freeze({
-    gestureDirection: "right",
     holdStillMs: 450,
     language: "auto",
     disabledSites: Object.freeze([])
@@ -88,7 +87,6 @@
       : DEFAULT_SETTINGS.holdStillMs;
 
     return {
-      gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
       holdStillMs: choice,
       language: LANGUAGE_CHOICES
         .some((option) => option.value === candidate?.language)

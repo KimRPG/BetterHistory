@@ -110,15 +110,6 @@
   "popupSiteUnavailable": {
     "message": "このページでは使えません"
   },
-  "popupDirection": {
-    "message": "戻る方向"
-  },
-  "popupDirectionRight": {
-    "message": "右にスワイプ"
-  },
-  "popupDirectionLeft": {
-    "message": "左にスワイプ"
-  },
   "popupThreshold": {
     "message": "止めてからメニューが開くまで"
   },

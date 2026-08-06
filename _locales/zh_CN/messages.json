@@ -110,15 +110,6 @@
   "popupSiteUnavailable": {
     "message": "此页面不可用"
   },
-  "popupDirection": {
-    "message": "返回方向"
-  },
-  "popupDirectionRight": {
-    "message": "向右滑动"
-  },
-  "popupDirectionLeft": {
-    "message": "向左滑动"
-  },
   "popupThreshold": {
     "message": "停住多久后打开菜单"
   },
