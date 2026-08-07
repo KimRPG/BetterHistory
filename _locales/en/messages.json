@@ -3,7 +3,7 @@
     "message": "Better Gesture — trackpad swipe to browse tab history"
   },
   "extensionDescription": {
-    "message": "Trackpad, two fingers · Short pull → Back · Long pull → This tab's history · Nowhere to go back → Tab closes",
+    "message": "Adds trackpad gestures for opening this tab's history, closing a tab, and more.",
     "description": "Web Store listing description."
   },
   "actionTitle": {

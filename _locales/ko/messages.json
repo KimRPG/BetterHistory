@@ -3,7 +3,7 @@
     "message": "Better Gesture — 트랙패드 제스처로 뒤로가기와 방문 기록 열기"
   },
   "extensionDescription": {
-    "message": "트랙패드 두 손가락 · 짧게 당기기 → 뒤로가기 · 길게 당기기 → 방문 기록 열기 · 뒤로 갈 곳 없는 탭 → 바로 닫힘"
+    "message": "트랙패드로 방문기록 열기, 창 닫기 등 다양한 기능을 추가합니다"
   },
   "actionTitle": {
     "message": "Better Gesture 설정"

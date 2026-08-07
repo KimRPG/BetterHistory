@@ -3,7 +3,7 @@
     "message": "Better Gesture — 触控板手势打开标签页历史记录"
   },
   "extensionDescription": {
-    "message": "触控板双指 · 短拖 → 后退 · 长拖 → 当前标签页的浏览记录 · 无后退记录 → 关闭标签页"
+    "message": "通过触控板添加打开浏览记录、关闭标签页等多种功能。"
   },
   "actionTitle": {
     "message": "Better Gesture 设置"
