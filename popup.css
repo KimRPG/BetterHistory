@@ -23,16 +23,9 @@ main { padding: 13px; }
 }
 
 .brand-mark {
-  align-items: center;
-  background: linear-gradient(145deg, #2563eb, #1d4ed8);
-  border-radius: 9px;
-  color: white;
-  display: flex;
+  display: block;
   flex: 0 0 auto;
-  font-size: 16px;
-  font-weight: 700;
   height: 28px;
-  justify-content: center;
   width: 28px;
 }
 
