@@ -3,7 +3,7 @@
     "message": "Better Gesture — trackpad swipe to browse tab history"
   },
   "extensionDescription": {
-    "message": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
+    "message": "Pull two fingers on the trackpad to open this tab's history list, or close a link-opened tab and return to the page it came from.",
     "description": "Web Store listing description."
   },
   "actionTitle": {

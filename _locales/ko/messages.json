@@ -3,7 +3,7 @@
     "message": "Better Gesture — 트랙패드 제스처로 뒤로가기와 방문 기록 열기"
   },
   "extensionDescription": {
-    "message": "익숙한 브라우저 탐색 기능을 직관적인 제스처로 빠르게 사용하세요."
+    "message": "트랙패드를 두 손가락으로 당기면 이 탭의 방문 기록이 열립니다. 링크로 열린 탭은 바로 닫고 원래 보던 페이지로 돌아갑니다."
   },
   "actionTitle": {
     "message": "Better Gesture 설정"

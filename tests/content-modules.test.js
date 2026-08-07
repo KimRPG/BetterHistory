@@ -206,10 +206,11 @@ test("스토어 제목은 언어마다 설명을 달고 팝업은 짧은 이름�
   assert.equal(popupHtml.includes(`<h1>${brand}</h1>`), true);
 
   for (const locale of ["en", "ko", "ja", "zh_CN"]) {
-    const name = JSON.parse(fs.readFileSync(
+    const messages = JSON.parse(fs.readFileSync(
       path.join(__dirname, "..", "_locales", locale, "messages.json"),
       "utf8"
-    )).extensionName.message;
+    ));
+    const name = messages.extensionName.message;
 
     // 브랜드는 번역하지 않고 뒤의 설명만 언어를 따릅니다.
     assert.equal(name.startsWith(brand), true, `${locale}의 이름이 다릅니다`);
@@ -218,6 +219,15 @@ test("스토어 제목은 언어마다 설명을 달고 팝업은 짧은 이름�
     assert.equal(name.length <= 75, true, `${locale}의 이름이 너무 깁니다`);
     // 긴 이름은 스토어 전용입니다. 좁은 팝업에 들어가면 안 됩니다.
     assert.equal(popupHtml.includes(name), false);
+
+    // 설명도 상한이 있고, 넘으면 마찬가지로 거부됩니다. 번역하다 보면 언어
+    // 하나만 슬쩍 넘기기 쉬운데 올려 보기 전까지는 알 수 없습니다.
+    const description = messages.extensionDescription.message;
+    assert.equal(
+      description.length <= 132,
+      true,
+      `${locale}의 설명이 ${description.length}자로 너무 깁니다`
+    );
   }
 });
 

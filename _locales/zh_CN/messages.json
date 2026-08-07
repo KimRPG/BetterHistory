@@ -3,7 +3,7 @@
     "message": "Better Gesture — 触控板手势打开标签页历史记录"
   },
   "extensionDescription": {
-    "message": "用直观的手势，快速调用熟悉的浏览器导航功能。"
+    "message": "触控板双指拖动即可打开当前标签页的浏览记录，链接打开的标签页则直接关闭并返回原页面。"
   },
   "actionTitle": {
     "message": "Better Gesture 设置"
