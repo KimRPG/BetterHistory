@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
 
   // 문구는 _locales/<언어>/messages.json에만 두고 여기로만 꺼냅니다.
   //

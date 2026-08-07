@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
 
   // 트랙패드에서 손가락을 떼도 macOS는 관성(momentum) wheel 이벤트를 1초 넘게
   // 계속 보냅니다. 이걸 걸러내지 않으면 짧게 튕긴 제스처가 길게 당긴 것과

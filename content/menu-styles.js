@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
 
   namespace.MENU_STYLES = `
     :host { color-scheme: light dark; }

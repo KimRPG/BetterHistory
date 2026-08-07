@@ -2,6 +2,6 @@
    페이지 본문에 translate 같은 변환을 걸면 그 요소가 position: fixed 자손의
    containing block이 되어 고정 헤더·배너가 튀므로, 시각 피드백은 확장이
    직접 그리는 인디케이터에서만 처리합니다. */
-html[data-gesture-back-history-navigation] {
+html[data-better-gesture-navigation] {
   overscroll-behavior-x: none !important;
 }

@@ -1,4 +1,4 @@
-# GestureBackHistory
+# Better Gesture
 
 Mac 트랙패드에서 두 손가락으로 좌우 제스처를 하면, 현재 탭에서 실제로 방문했던 이전·다음 페이지 목록을 웹페이지 위에 보여 주는 Chrome 확장 프로그램입니다.
 

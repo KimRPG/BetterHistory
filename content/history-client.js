@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
   const { t } = namespace;
 
   namespace.historyClient = {

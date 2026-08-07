@@ -12,7 +12,7 @@ const {
   toSiteKey,
   useMessages,
   t
-} = globalThis.GestureBackHistory;
+} = globalThis.BetterGesture;
 
 const siteRow = document.querySelector("#site-row");
 const siteHostLabel = document.querySelector("#site-host");

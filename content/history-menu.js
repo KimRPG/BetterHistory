@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
   const { t } = namespace;
   const ERROR_AUTO_DISMISS_MS = 3600;
   const TOAST_DURATION_MS = 2600;
@@ -35,7 +35,7 @@
       if (!document.documentElement) return false;
 
       this.host = document.createElement("div");
-      this.host.setAttribute("data-gesture-back-history", "");
+      this.host.setAttribute("data-better-gesture", "");
       this.host.style.setProperty("all", "initial", "important");
       this.host.style.setProperty("position", "fixed", "important");
       this.host.style.setProperty("z-index", "2147483647", "important");

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
 
   const DEFAULT_SETTINGS = Object.freeze({
     gestureDirection: "right",

@@ -104,7 +104,7 @@ function createController({ historyLength = 2 } = {}) {
     new vm.Script(source, { filename: file }).runInContext(context);
   }
 
-  const controller = new context.GestureBackHistory.GestureController();
+  const controller = new context.BetterGesture.GestureController();
   // 실제 메뉴처럼 열린 뒤에는 isOpen()이 true가 됩니다. 이걸 흉내 내지 않으면
   // "메뉴가 열린 뒤" 경로가 테스트에서 통째로 빠집니다.
   let menuOpen = false;

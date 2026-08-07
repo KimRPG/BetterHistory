@@ -1,5 +1,5 @@
 {
-  "name": "gesture-back-history",
+  "name": "better-gesture",
   "version": "1.0.0",
   "private": true,
   "description": "Chrome extension that shows the current tab's real session history from a trackpad gesture.",

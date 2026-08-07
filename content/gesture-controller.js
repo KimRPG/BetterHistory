@@ -1,10 +1,10 @@
 (() => {
   "use strict";
 
-  const namespace = globalThis.GestureBackHistory ??= {};
+  const namespace = globalThis.BetterGesture ??= {};
   const { DEFAULT_SETTINGS, isSiteDisabled, sanitizeSettings, toSiteKey } =
     namespace;
-  const NAVIGATION_BLOCK_ATTRIBUTE = "data-gesture-back-history-navigation";
+  const NAVIGATION_BLOCK_ATTRIBUTE = "data-better-gesture-navigation";
   const GESTURE_IDLE_MS = 190;
   // 손가락을 계속 움직여 이 시간을 넘기면 메뉴입니다. 실제 당김 폭(대략
   // 100~250ms) 한가운데라 손버릇에 따라 갈리지 않으므로 설정에 두지 않습니다.
@@ -375,7 +375,7 @@
         await namespace.historyClient.navigateOneStep(direction);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn("GestureBackHistory: 한 단계 이동에 실패했습니다.", error);
+        console.warn("Better Gesture: 한 단계 이동에 실패했습니다.", error);
         this.menu.showToast(message);
       }
     }

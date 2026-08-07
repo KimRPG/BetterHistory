@@ -3,7 +3,7 @@
 // 문구는 콘텐츠 스크립트와 같은 정의를 씁니다. 서비스 워커도 chrome.i18n을
 // 그대로 쓸 수 있으므로 조회 함수를 복제하지 않습니다.
 importScripts("shared/i18n.js");
-const { readMessages, t, useMessages } = globalThis.GestureBackHistory;
+const { readMessages, t, useMessages } = globalThis.BetterGesture;
 
 const PROTOCOL_VERSION = "1.3";
 const MAX_HISTORY_ENTRIES = 20;
@@ -382,7 +382,7 @@ function toErrorResponse(error) {
   const rawMessage = error instanceof Error ? error.message : String(error);
   const message = toFriendlyMessage(rawMessage);
   if (!message) {
-    console.warn("GestureBackHistory: 처리하지 못한 오류입니다.", error);
+    console.warn("Better Gesture: 처리하지 못한 오류입니다.", error);
   }
 
   return { ok: false, error: message || t("errorGeneric") };

@@ -144,7 +144,7 @@ function loadContentModules({
     Element: context.Element,
     listeners,
     messages,
-    namespace: context.GestureBackHistory,
+    namespace: context.BetterGesture,
     rootAttributes
   };
 }
@@ -378,7 +378,7 @@ test("방문 기록 URL로 Chrome favicon 주소를 만든다", () => {
 // 돌아옵니다.
 test("사이트를 제외하면 Chrome 기본 가로 탐색 차단도 함께 푼다", async () => {
   const runtime = loadContentModules({ url: "https://example.com/docs" });
-  const attribute = "data-gesture-back-history-navigation";
+  const attribute = "data-better-gesture-navigation";
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(runtime.rootAttributes.has(attribute), true);
