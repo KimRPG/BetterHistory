@@ -3,7 +3,7 @@
     "message": "Better Gesture — トラックパッドのスワイプでタブ履歴を開く"
   },
   "extensionDescription": {
-    "message": "トラックパッドを2本指で短く引くと戻る、長く引くとこのタブの履歴一覧が開きます。戻り先のないタブはそのまま閉じます。"
+    "message": "トラックパッド2本指 · 短く引く → 戻る · 長く引く → このタブの履歴 · 戻り先なし → タブを閉じる"
   },
   "actionTitle": {
     "message": "Better Gesture の設定"

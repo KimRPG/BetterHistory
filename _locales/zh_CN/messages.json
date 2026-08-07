@@ -3,7 +3,7 @@
     "message": "Better Gesture — 触控板手势打开标签页历史记录"
   },
   "extensionDescription": {
-    "message": "触控板双指短拖后退，长拖打开当前标签页的浏览记录；没有后退记录的标签页会直接关闭。"
+    "message": "触控板双指 · 短拖 → 后退 · 长拖 → 当前标签页的浏览记录 · 无后退记录 → 关闭标签页"
   },
   "actionTitle": {
     "message": "Better Gesture 设置"
