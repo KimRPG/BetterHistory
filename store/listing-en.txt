@@ -1,0 +1,56 @@
+Going back in a browser is one step at a time. Three pages back means three clicks, and you only find out where you land after you get there.
+
+Better Gesture shows the pages this tab actually came through, right on the page, while you are still pulling. Pick one without lifting your fingers and jump straight to it.
+
+
+■ How to use it
+
+• Flick and release → back one step. Flick the other way to go forward.
+
+• Keep pulling in the same direction → past 0.18 seconds the history menu opens on the spot. It does not wait for you to lift your fingers.
+
+• Pull and hold still → the menu opens after 0.45 seconds by default. (Chrome 151+)
+
+• Once the menu is open, move up and down on the trackpad to choose and lift your fingers to go. You can also click, or use ↑ ↓ + Enter. Esc or a click outside closes it.
+
+• Pulling back on a tab with no history closes that tab. If it was opened from a link, the tab you came from comes forward.
+
+• While you pull, an arrow indicator follows your fingers along the edge of the screen and shows how much is left before the menu opens.
+
+
+■ How this differs from browser history
+
+Chrome's history mixes every tab together in chronological order. Better Gesture shows the back and forward order of this tab only — the same list you get from pressing and holding the back button, with each entry showing its site icon and page title.
+
+
+■ Settings (the toolbar icon)
+
+• Use on this site — turn the extension off for one site that uses horizontal swipes for its own purposes. The current host is shown under the switch. Turning it off applies immediately with no reload, and Chrome's own swipe comes back.
+
+• Wait before the menu opens — 0.30s / 0.45s / 0.70s. Pick a longer wait if you tend to pause mid-pull, a shorter one if you stop deliberately.
+
+• Language — English, Korean, Japanese, Simplified Chinese. Follows your Chrome language by default.
+
+
+■ Good to know
+
+• Built for the Mac trackpad. Chrome 104 or later is required, and "hold still to open" works on Chrome 151 or later.
+
+• Chrome briefly shows a debugging notice bar when the menu opens. Reading the back and forward order of the current tab is only possible through the debugger — that order is not part of the browser-wide history API.
+
+• On areas that use two-finger input themselves, such as maps, the gesture stands down. Everywhere else on the same page it still works.
+
+• It does not work on chrome:// pages, the new tab page, or the Chrome Web Store. It also does not work over embedded iframes from other sites, such as videos and documents.
+
+• It cannot run alongside DevTools or another debugger attached to the same tab.
+
+• Reload any tabs you had open before installing.
+
+• Any horizontal gesture counts, however small — so a sideways drift while scrolling vertically can navigate the page.
+
+
+■ Privacy
+
+Nothing is collected. Your browsing history and page contents never leave your machine. There is no server, no advertising, and no analytics.
+
+Your settings (the list of disabled sites, the wait time, and the language) are kept in Chrome's sync storage and shared only between devices signed in to the same Google account.
