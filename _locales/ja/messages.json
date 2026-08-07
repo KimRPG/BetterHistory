@@ -1,4 +1,7 @@
 {
+  "extensionName": {
+    "message": "Better Gesture — トラックパッドのスワイプでタブ履歴を開く"
+  },
   "extensionDescription": {
     "message": "使い慣れたブラウザの移動操作を、直感的なジェスチャーで素早く呼び出せます。"
   },

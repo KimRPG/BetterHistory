@@ -1,4 +1,7 @@
 {
+  "extensionName": {
+    "message": "Better Gesture — trackpad swipe to browse tab history"
+  },
   "extensionDescription": {
     "message": "Access familiar browser navigation features quickly and easily with intuitive gestures.",
     "description": "Web Store listing description."

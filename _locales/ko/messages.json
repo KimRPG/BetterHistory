@@ -1,4 +1,7 @@
 {
+  "extensionName": {
+    "message": "Better Gesture — 트랙패드 제스처로 뒤로가기와 방문 기록 열기"
+  },
   "extensionDescription": {
     "message": "익숙한 브라우저 탐색 기능을 직관적인 제스처로 빠르게 사용하세요."
   },

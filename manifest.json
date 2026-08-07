@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Better Gesture — trackpad swipe to browse tab history",
+  "name": "__MSG_extensionName__",
   "version": "1.0.0",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",

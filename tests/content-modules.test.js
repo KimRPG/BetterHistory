@@ -189,9 +189,10 @@ test("favicon API를 지원하는 Chrome 버전을 최소 버전으로 선언한
 });
 
 // 스토어 목록에 뜨는 제목은 manifest의 name을 그대로 씁니다. 따로 긴 제목을
-// 다는 칸이 없으므로 검색에 걸릴 말을 여기에 붙여 둡니다. 다만 화면 안에서는
-// 짧은 이름만 씁니다 — 팝업 헤더에 한 줄 설명까지 들어가면 자리를 다 먹습니다.
-test("스토어 제목은 설명을 달고 팝업은 짧은 이름만 쓴다", () => {
+// 다는 칸이 없으므로 검색에 걸릴 말을 여기에 붙여 둡니다. 언어마다 사람들이
+// 치는 말이 다르므로 이름도 언어별로 갈라 둡니다. 다만 화면 안에서는 짧은
+// 이름만 씁니다 — 팝업 헤더에 한 줄 설명까지 들어가면 자리를 다 먹습니다.
+test("스토어 제목은 언어마다 설명을 달고 팝업은 짧은 이름만 쓴다", () => {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8")
   );
@@ -201,13 +202,23 @@ test("스토어 제목은 설명을 달고 팝업은 짧은 이름만 쓴다", (
   );
   const brand = "Better Gesture";
 
-  assert.equal(manifest.name.startsWith(brand), true);
-  assert.equal(manifest.name.length > brand.length, true);
-  // 75자를 넘으면 업로드 자체가 거부됩니다.
-  assert.equal(manifest.name.length <= 75, true);
-
+  assert.equal(manifest.name, "__MSG_extensionName__");
   assert.equal(popupHtml.includes(`<h1>${brand}</h1>`), true);
-  assert.equal(popupHtml.includes(manifest.name), false);
+
+  for (const locale of ["en", "ko", "ja", "zh_CN"]) {
+    const name = JSON.parse(fs.readFileSync(
+      path.join(__dirname, "..", "_locales", locale, "messages.json"),
+      "utf8"
+    )).extensionName.message;
+
+    // 브랜드는 번역하지 않고 뒤의 설명만 언어를 따릅니다.
+    assert.equal(name.startsWith(brand), true, `${locale}의 이름이 다릅니다`);
+    assert.equal(name.length > brand.length, true, `${locale}에 설명이 없습니다`);
+    // 75자를 넘으면 업로드 자체가 거부됩니다.
+    assert.equal(name.length <= 75, true, `${locale}의 이름이 너무 깁니다`);
+    // 긴 이름은 스토어 전용입니다. 좁은 팝업에 들어가면 안 됩니다.
+    assert.equal(popupHtml.includes(name), false);
+  }
 });
 
 test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다", () => {

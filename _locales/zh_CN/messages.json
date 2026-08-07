@@ -1,4 +1,7 @@
 {
+  "extensionName": {
+    "message": "Better Gesture — 触控板手势打开标签页历史记录"
+  },
   "extensionDescription": {
     "message": "用直观的手势，快速调用熟悉的浏览器导航功能。"
   },
