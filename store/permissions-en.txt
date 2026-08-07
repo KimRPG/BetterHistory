@@ -1,0 +1,111 @@
+Chrome Web Store — Privacy practices tab
+Paste each block into the matching field. English is the required language here.
+
+
+──────────────────────────────────────────
+SINGLE PURPOSE
+──────────────────────────────────────────
+
+Better Gesture has one purpose: making the browser's back and forward navigation
+easier to use from a trackpad. A short two-finger pull goes back or forward one
+step. Holding the pull opens a list of the pages the current tab has navigated
+through, so the user can jump several steps at once instead of pressing back
+repeatedly.
+
+
+──────────────────────────────────────────
+HOST PERMISSION  (<all_urls>)
+──────────────────────────────────────────
+
+The gesture has to work wherever the user browses, so the content script is
+injected into all http and https pages. It listens for wheel events and draws
+its own menu inside a closed shadow root. It does not read, collect, or modify
+the content of any page, and it sends no page data anywhere.
+
+The host permission also lets the popup read the hostname of the active tab.
+That is what makes the "Use on this site" switch possible: the user opens the
+popup on a site where horizontal swipes are used for something else and turns
+the extension off for that one site. Requesting the "tabs" permission instead
+would grant access to the URL and title of every tab, which is more than this
+feature needs.
+
+The permission is also required by the web-accessible "_favicon/" resource used
+to show site icons in the menu.
+
+
+──────────────────────────────────────────
+DEBUGGER
+──────────────────────────────────────────
+
+The core feature is showing the list of pages the current tab has navigated
+through so the user can jump back several steps at once. That list is the tab's
+session history, and chrome.debugger with Page.getNavigationHistory is the only
+way an extension can read it.
+
+There is no narrower API that returns this data:
+
+- chrome.history returns browser-wide visits in chronological order. It has no
+  tab association, no notion of where the tab currently sits in its own back and
+  forward stack, and collapses repeat visits to the same URL. It cannot produce
+  the list this extension shows.
+- chrome.tabs can only move one step at a time with goBack() and goForward().
+  It has no method that reads the navigation entries.
+- chrome.webNavigation only reports navigations as they happen, so it has
+  nothing for tabs that existed before the extension was installed or that were
+  restored from a previous session.
+
+The debugger is attached only in response to a deliberate user gesture, used for
+a single Page.getNavigationHistory call, and detached immediately afterwards in
+a finally block. When the user picks an entry from the menu it is attached again
+for one Page.navigateToHistoryEntry call and detached the same way. It is never
+attached in the background, never left attached, and never used to read page
+content, network traffic, cookies, or scripts.
+
+
+──────────────────────────────────────────
+FAVICON
+──────────────────────────────────────────
+
+Every entry in the history menu shows the site icon of that page next to its
+title, so the user can recognise where each entry leads at a glance. The favicon
+permission provides the _favicon/ URL that renders icons Chrome has already
+cached locally. When an icon is not available the extension falls back to
+drawing the first letter of the domain. No request is made to any external
+server, and no icon data is collected or transmitted.
+
+
+──────────────────────────────────────────
+STORAGE
+──────────────────────────────────────────
+
+Stores the user's own settings and nothing else:
+
+- the list of sites the user has turned the extension off for (hostnames only)
+- how long to wait after the gesture stops before the menu opens
+  (0.30 / 0.45 / 0.70 seconds)
+- the interface language
+
+These are kept in chrome.storage.sync so that a user's settings follow them
+across the devices they are signed in to.
+
+chrome.storage.session additionally holds a short-lived record of which tab
+opened which other tab. This is what lets a back gesture on a tab with no
+history return to the tab it was opened from. It contains tab IDs only, never
+URLs or page content, it is cleared when a tab closes, and it does not survive
+a browser restart.
+
+No browsing history, page content, or personal data is stored, and nothing is
+transmitted off the user's machine.
+
+
+──────────────────────────────────────────
+DATA USE
+──────────────────────────────────────────
+
+This extension collects no user data. There is no server, no analytics, and no
+advertising. Browsing history and page content never leave the user's machine.
+
+Tick all three certification boxes: the data is not sold or transferred to third
+parties outside of approved use cases, is not used or transferred for purposes
+unrelated to the item's single purpose, and is not used or transferred to
+determine creditworthiness or for lending purposes.
