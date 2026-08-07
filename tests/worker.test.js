@@ -145,6 +145,11 @@ function loadWorker(history, tabErrors = {}, hooks = {}) {
         if (!tab) throw new Error(`No tab with given id ${tabId}`);
         return { ...tab };
       },
+      async query({ windowId } = {}) {
+        return [...tabs.values()]
+          .filter((tab) => windowId === undefined || tab.windowId === windowId)
+          .map((tab) => ({ ...tab }));
+      },
       async update(tabId, properties) {
         calls.push({ method: "activate", tabId, properties });
         const tab = tabs.get(tabId);
@@ -636,9 +641,49 @@ test("탭이 닫히면 그 탭을 가리키던 관계도 지운다", async () =>
   );
 });
 
-test("연 탭이 이미 닫혔으면 현재 탭을 닫지 않는다", async () => {
+// 돌아갈 기록이 없다는 것은 이 탭에서 볼 것이 끝났다는 뜻입니다. 링크로 열린
+// 탭인지는 따지지 않습니다 — 주소를 직접 친 탭이든 아니든 뒤로 갈 곳이 없기는
+// 마찬가지고, 사용자는 그 전에 보던 화면으로 돌아가려는 것입니다.
+test("연 탭이 없어도 돌아갈 기록이 없으면 탭을 닫는다", async () => {
   const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
-    tabs: [{ id: 7, windowId: 1, openerTabId: 3 }]
+    tabs: [
+      { id: 7, windowId: 1, url: "https://example.com/typed" },
+      { id: 8, windowId: 1, url: "https://example.com/other" }
+    ]
+  });
+
+  const response = await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: true
+  });
+  // 어디로 갈지는 Chrome이 정합니다. 우리가 활성화할 탭을 고르지 않습니다.
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), [
+    { method: "remove", tabId: 7 }
+  ]);
+});
+
+test("연 탭이 이미 닫혔어도 돌아갈 기록이 없으면 탭을 닫는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: [
+      { id: 7, windowId: 1, openerTabId: 3 },
+      { id: 8, windowId: 1 }
+    ]
+  });
+
+  await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), [
+    { method: "remove", tabId: 7 }
+  ]);
+});
+
+// 마지막 탭을 닫으면 창이 통째로 사라집니다. 돌아갈 곳도 정해져 있지 않은데
+// 뒤로가기 한 번으로 창을 없애면 시킨 일의 범위를 넘습니다.
+test("연 탭도 없고 창에 탭이 하나뿐이면 아무것도 하지 않는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: [{ id: 7, windowId: 1, url: "https://example.com/only" }]
   });
 
   const response = await navigateOneStep(runtime);
@@ -648,6 +693,25 @@ test("연 탭이 이미 닫혔으면 현재 탭을 닫지 않는다", async () =
     navigated: false
   });
   assert.deepEqual(tabActions(runtime), []);
+});
+
+// 반대로 연 탭이 있으면 어디서 왔는지가 분명합니다. 창이 닫혀도 그쪽으로
+// 이어지므로 마지막 탭이라도 닫습니다.
+test("창에 하나뿐이어도 연 탭이 있으면 그쪽으로 보내고 닫는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: linkOpenedTabs({ openerWindowId: 2 })
+  });
+
+  const response = await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: true
+  });
+  assert.equal(
+    runtime.calls.some(({ method, tabId }) => method === "remove" && tabId === 7),
+    true
+  );
 });
 
 test("앞으로 갈 기록이 없을 때는 연 탭으로 돌아가지 않는다", async () => {

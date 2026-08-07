@@ -175,11 +175,41 @@ async function getTab(tabId) {
   }
 }
 
+// 메뉴에서 "이 탭을 연 페이지" 항목을 고른 경우입니다. 그 페이지로 가는 것이
+// 목적이므로, 연 탭이 없으면 할 일이 없습니다.
 async function returnToOpener(tabId) {
   const found = await findOpener(tabId);
   if (!found) return false;
 
-  const { tab, opener } = found;
+  await activateOpener(found);
+  // 닫기를 기다리지 않고 응답합니다. 페이지의 beforeunload 확인창에 막히면
+  // 여기서 멈춰 서서 이미 사라질 탭의 메뉴가 응답을 기다리게 됩니다.
+  void closeReturnedTab(tabId);
+  return true;
+}
+
+// 뒤로 갈 기록이 없는 탭에서 뒤로 제스처를 한 경우입니다. 이 탭에서 볼 것은
+// 끝났고 사용자는 그 전 화면으로 돌아가려는 것이므로 탭을 닫습니다. 이 탭을
+// 연 탭이 있으면 그쪽을 앞으로 가져오고, 없으면 닫기만 합니다.
+//
+// 연 탭이 없고 창에 이 탭 하나만 남았을 때는 아무것도 하지 않습니다. 닫는
+// 순간 창이 통째로 사라지는데 돌아갈 곳도 정해져 있지 않으므로, 뒤로가기 한
+// 번으로 시킬 만한 일이 아닙니다. 연 탭이 있으면 이야기가 다릅니다 — 어디서
+// 왔는지가 분명하니 창이 닫혀도 그쪽으로 이어집니다.
+async function closeDeadEndTab(tabId) {
+  const tab = await getTab(tabId);
+  if (!tab) return false;
+
+  const found = await findOpener(tabId);
+  if (!found && await isLastTabInWindow(tab)) return false;
+
+  if (found) await activateOpener(found);
+
+  void closeReturnedTab(tabId);
+  return true;
+}
+
+async function activateOpener({ tab, opener }) {
   await chrome.tabs.update(opener.id, { active: true });
 
   if (Number.isInteger(opener.windowId) && opener.windowId !== tab?.windowId) {
@@ -189,11 +219,18 @@ async function returnToOpener(tabId) {
       // 창을 앞으로 못 가져와도 탭 자체는 이미 활성화되어 있습니다.
     }
   }
+}
 
-  // 닫기를 기다리지 않고 응답합니다. 페이지의 beforeunload 확인창에 막히면
-  // 여기서 멈춰 서서 이미 사라질 탭의 메뉴가 응답을 기다리게 됩니다.
-  void closeReturnedTab(tabId);
-  return true;
+async function isLastTabInWindow(tab) {
+  if (!Number.isInteger(tab.windowId)) return true;
+
+  try {
+    const tabs = await chrome.tabs.query({ windowId: tab.windowId });
+    return tabs.length <= 1;
+  } catch {
+    // 몇 개인지 모르면 닫지 않는 쪽으로 둡니다.
+    return true;
+  }
 }
 
 async function closeReturnedTab(tabId) {
@@ -232,9 +269,9 @@ async function navigateOneStep(tabId, direction = "back") {
   } catch (error) {
     if (!isUnavailableHistoryError(error)) throw error;
 
-    // 링크로 새로 열린 탭에는 돌아갈 기록이 없습니다. 뒤로 제스처를 이 탭을
-    // 연 탭으로 돌려보냅니다.
-    return direction === "back" ? returnToOpener(tabId) : false;
+    // 돌아갈 기록이 없는 탭입니다. 뒤로 제스처는 이 탭을 닫아 그 전에 보던
+    // 화면으로 돌려보냅니다.
+    return direction === "back" ? closeDeadEndTab(tabId) : false;
   }
 }
 
