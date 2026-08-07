@@ -1,78 +1,23 @@
-✌️ Pull with two fingers on the trackpad, and the path this tab took unfolds in front of you.
+Adds trackpad gestures for opening this tab's history, closing a tab, and more.
 
-Going back in a browser is one step at a time. Three pages back means three clicks, and you only find out where you land after you get there.
+🚀 Features
+  ⭐️ Flick to go back or forward one step
+  ⭐️ Keep pulling to open the list of pages this tab came through
+  ⭐️ Or pull and hold still to open it (Chrome 151+)
+  ⭐️ Choose from the list to jump several steps at once
+  ⭐️ A tab with nothing to go back to just closes
+  ⭐️ Turn it off on the sites where it gets in the way
+  ⭐️ English, Korean, Japanese and Chinese
 
-Better Gesture shows the pages this tab actually came through while you are still pulling. Pick one without lifting your fingers and jump straight to it.
+⚠️ Note
+Chrome briefly shows a debugging notice bar when the list opens. Reading the back and forward order of the current tab is only possible through the debugger.
+It does not work on chrome:// pages, the new tab page, or the Chrome Web Store.
+Reload any tabs you had open before installing.
 
+🧑‍💻 Contributing
+Better Gesture is an open source project and anyone can take part.
+Check the source at the link below and bring your ideas and improvements.
 
-━━━━━━━━━━━━━━━━━━━━━━━
-✨ How to use it
-━━━━━━━━━━━━━━━━━━━━━━━
+https://github.com/KimRPG/GestureBackHistory
 
-👉 Flick and release
-     Back one step. Flick the other way to go forward.
-
-🗂️ Keep pulling in the same direction
-     Past 0.18 seconds the history menu opens on the spot. It does not wait for you to lift your fingers.
-
-✋ Pull and hold still
-     The menu opens after 0.45 seconds by default. (Chrome 151+)
-
-↕️ Choose from the menu
-     Move up and down on the trackpad and lift your fingers to go. You can also click or use ↑ ↓ + Enter, and Esc or a click outside closes it.
-
-🚪 A tab with nothing to go back to
-     Pulling back closes that tab. If it was opened from a link, the tab you came from comes forward.
-
-While you pull, an arrow indicator follows your fingers along the edge of the screen and shows how much is left before the menu opens.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━
-🔍 How is this different from browser history?
-━━━━━━━━━━━━━━━━━━━━━━━
-
-Chrome's history (Ctrl+H) mixes every tab together in chronological order.
-
-Better Gesture shows the back and forward order of this tab only — the same list you get from pressing and holding the back button, with each entry showing its site icon and page title.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━
-⚙️ Settings (the toolbar icon)
-━━━━━━━━━━━━━━━━━━━━━━━
-
-🌐 Use on this site
-     Turn the extension off for one site that uses horizontal swipes for its own purposes. The current host is shown under the switch. It applies immediately with no reload, and Chrome's own swipe comes back.
-
-⏱️ Wait before the menu opens
-     0.30s / 0.45s / 0.70s. Pick a longer wait if you tend to pause mid-pull, a shorter one if you stop deliberately.
-
-🗣️ Language
-     English, Korean, Japanese, Simplified Chinese. Follows your Chrome language by default.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ Good to know
-━━━━━━━━━━━━━━━━━━━━━━━
-
-• Built for the Mac trackpad. Chrome 104 or later is required, and "hold still to open" works on Chrome 151 or later.
-
-• Chrome briefly shows a debugging notice bar when the menu opens. Reading the back and forward order of the current tab is only possible through the debugger — that order is not part of the browser-wide history API.
-
-• On areas that use two-finger input themselves, such as maps, the gesture stands down. Everywhere else on the same page it still works.
-
-• It does not work on chrome:// pages, the new tab page, or the Chrome Web Store, nor over embedded iframes from other sites such as videos and documents.
-
-• It cannot run alongside DevTools or another debugger attached to the same tab.
-
-• Reload any tabs you had open before installing.
-
-• Any horizontal gesture counts, however small — so a sideways drift while scrolling vertically can navigate the page.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━
-🔒 Privacy
-━━━━━━━━━━━━━━━━━━━━━━━
-
-Nothing is collected. Your browsing history and page contents never leave your machine. There is no server, no advertising, and no analytics.
-
-Your settings (the list of disabled sites, the wait time, and the language) are kept in Chrome's sync storage and shared only between devices signed in to the same Google account.
+🔒 Nothing is collected. Your browsing history and page contents never leave your machine, and there is no server, advertising, or analytics.
