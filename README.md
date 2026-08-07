@@ -133,6 +133,7 @@ ChromeExtension/
 │   └── index.js             # 콘텐츠 기능 시작점
 ├── icons/          # 툴바·웹스토어 아이콘 (16·32·48·128)
 ├── tools/
+│   ├── build.js             # 웹 스토어 업로드용 zip 생성기 (npm run build)
 │   └── make-icons.js        # 아이콘 PNG 생성기 (npm run icons)
 ├── popup.html      # 확장 아이콘 설정 화면
 ├── popup.css
@@ -140,7 +141,9 @@ ChromeExtension/
 ├── tests/
 │   ├── worker.test.js          # 히스토리 처리 단위 테스트
 │   ├── content-modules.test.js # 콘텐츠 모듈 조립 및 제스처 테스트
-│   └── gesture-scenarios.test.js # 실제 입력 모양으로 재현한 제스처 판정
+│   ├── gesture-scenarios.test.js # 실제 입력 모양으로 재현한 제스처 판정
+│   ├── build.test.js           # 패키지에 담을 목록 검사
+│   └── i18n.test.js            # 네 언어의 키 일치 검사
 └── README.md
 ```
 
@@ -152,6 +155,18 @@ ChromeExtension/
 ```bash
 npm test   # 또는 node --test
 ```
+
+웹 스토어에 올릴 패키지는 아래처럼 만듭니다. 결과는 `dist/better-gesture-<버전>.zip`입니다.
+
+```bash
+npm run build
+```
+
+- 담을 파일은 손으로 적지 않고 **manifest에서 출발해 참조를 따라가며** 모읍니다. HTML의 `<script src>`·`<link href>`와 서비스 워커의 `importScripts`까지 한 단계씩 끌어오고, `_locales` 아래는 통째로 담습니다. 목록을 손으로 관리하면 파일을 추가할 때마다 같이 고쳐야 하는데, 안 고쳐도 **빌드는 성공하고 Chrome에서만 터집니다.**
+- 만들기 전에 먼저 확인하고, 하나라도 걸리면 zip을 쓰지 않고 실패합니다. 빠진 파일, `default_locale`에 정의되지 않은 `__MSG__` 키, manifest와 `package.json`의 버전 불일치, 그리고 **저장소에는 있는데 어디에서도 참조되지 않는 런타임 파일**입니다. 마지막 항목이 콘텐츠 스크립트를 만들고 manifest에 넣는 것을 잊은 경우를 잡습니다.
+- `_favicon/*`은 Chrome이 만들어 주는 경로라 저장소에 파일이 없습니다. 담을 대상에서 빼고 보고만 합니다.
+- 같은 입력이면 같은 바이트가 나옵니다. 파일 수정 시각을 넣지 않고 DOS 기준 시각으로 고정하기 때문입니다. zip은 외부 도구 없이 `tools/build.js`가 직접 씁니다.
+- `tests/build.test.js`가 같은 수집 함수를 그대로 불러 검사하므로, 목록이 어긋나면 배포 전에 `npm test`에서 먼저 걸립니다.
 
 아이콘은 `tools/make-icons.js`가 외부 의존성 없이 PNG를 직접 래스터화합니다. 색·모서리 반경·화살표 비율을 바꾸려면 이 파일 상단의 상수를 고친 뒤 다시 생성하세요.
 
