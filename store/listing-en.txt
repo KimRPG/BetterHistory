@@ -1,23 +1,15 @@
-Adds trackpad gestures for opening this tab's history, closing a tab, and more.
+A more capable back gesture for your trackpad.
 
 🚀 Features
-  ⭐️ Flick to go back or forward one step
-  ⭐️ Keep pulling to open the list of pages this tab came through
-  ⭐️ Or pull and hold still to open it (Chrome 151+)
-  ⭐️ Choose from the list to jump several steps at once
-  ⭐️ A tab with nothing to go back to just closes
-  ⭐️ Turn it off on the sites where it gets in the way
-  ⭐️ English, Korean, Japanese and Chinese
+  ⭐️ Swipe and hold to see the list
+  ⭐️ Scroll up and down the list to go back several steps at once
+  ⭐️ Swiping on a tab with no history closes the tab
 
 ⚠️ Note
-Chrome briefly shows a debugging notice bar when the list opens. Reading the back and forward order of the current tab is only possible through the debugger.
-It does not work on chrome:// pages, the new tab page, or the Chrome Web Store.
-Reload any tabs you had open before installing.
+All features work properly only on Chrome 151 or later.
 
 🧑‍💻 Contributing
-Better Gesture is an open source project and anyone can take part.
-Check the source at the link below and bring your ideas and improvements.
+Better-Gesture is an open source project and anyone can take part.
+Check the Better-Gesture source at the link below and bring us your ideas and improvements.
 
-https://github.com/KimRPG/GestureBackHistory
-
-🔒 Nothing is collected. Your browsing history and page contents never leave your machine, and there is no server, advertising, or analytics.
+https://github.com/KimRPG/BetterHistory

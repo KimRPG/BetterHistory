@@ -134,7 +134,7 @@ ChromeExtension/
 │   ├── gesture-controller.js # 스와이프 상태와 제스처 처리
 │   └── index.js             # 콘텐츠 기능 시작점
 ├── icons/          # 툴바·웹스토어 아이콘 (16·32·48·128)
-├── store/          # 웹 스토어 등록 정보에 붙여 넣는 긴 설명 (ko·en)
+├── store/          # 웹 스토어 등록 정보에 붙여 넣는 긴 설명 (en·ko·ja·zh_CN)
 ├── tools/
 │   ├── build.js             # 웹 스토어 업로드용 zip 생성기 (npm run build)
 │   └── make-icons.js        # 아이콘 PNG 생성기 (npm run icons)
