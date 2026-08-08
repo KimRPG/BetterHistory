@@ -145,7 +145,8 @@ function loadContentModules({
     listeners,
     messages,
     namespace: context.BetterGesture,
-    rootAttributes
+    rootAttributes,
+    window
   };
 }
 
@@ -867,6 +868,48 @@ test("지도처럼 페이지가 가져가는 영역에서만 물러나고 그 �
   assert.equal(preventedOutside, true);
   assert.equal(controller.gestureDirection, "back");
   controller.endGestureCapture();
+});
+
+test("트랙패드로 확대해 둔 동안에는 옆으로 당겨도 물러난다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  let prevented = false;
+
+  controller.menu = createGestureMenuStub();
+
+  // 확대해 둔 상태. 옆으로 당기는 것은 확대된 화면을 미는 동작입니다.
+  runtime.window.visualViewport = { scale: 2 };
+  const zoomed = createFingerEvent(0, -20);
+  zoomed.preventDefault = () => {
+    prevented = true;
+  };
+  controller.handleWheel(zoomed);
+
+  assert.equal(prevented, false);
+  assert.equal(controller.gestureDirection, null);
+
+  // 원래 배율로 돌아오면 같은 손짓이 다시 제스처입니다.
+  runtime.window.visualViewport = { scale: 1 };
+  controller.handleWheel(createFingerEvent(1000, -20));
+
+  assert.equal(controller.gestureDirection, "back");
+  controller.endGestureCapture();
+});
+
+test("제스처 도중 확대하면 이동하지 않고 접는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createFingerEvent(0, -20));
+  assert.equal(controller.gestureDirection, "back");
+
+  runtime.window.visualViewport = { scale: 1.5 };
+  controller.handleWheel(createFingerEvent(20, -20));
+
+  assert.equal(controller.gestureDirection, null);
+  assert.equal(controller.gestureIdleTimer, null);
+  assert.equal(runtime.messages.length, 0);
 });
 
 test("제스처 도중 페이지가 입력을 가져가면 이동하지 않고 접는다", () => {

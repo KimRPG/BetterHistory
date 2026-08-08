@@ -37,6 +37,9 @@
   const HORIZONTAL_RATIO = 1.25;
   const VERTICAL_SELECTION_STEP = 38;
   const SCROLL_OVERFLOW_TOLERANCE = 2;
+  // 확대하지 않았을 때의 배율은 1입니다. 사용자가 실제로 벌린 것과 계산 과정에서
+  // 1을 아주 조금 넘긴 값을 가르기 위해 여유를 둡니다.
+  const MIN_PINCH_SCALE = 1.01;
 
   class GestureController {
     constructor() {
@@ -194,6 +197,15 @@
       // 그대로 동작합니다. 시작해 둔 제스처가 있으면 판정까지 가지 않고 접습니다
       // — 페이지가 가져간 입력으로 페이지를 옮겨 버리면 안 됩니다.
       if (event.defaultPrevented) {
+        if (this.gestureDirection !== null) this.endGestureCapture();
+        return;
+      }
+
+      // 트랙패드로 확대해 둔 뒤에 옆으로 당기는 것은 확대된 화면을 미는
+      // 동작입니다. 이때 움직이는 것은 시각 뷰포트라서 문서의 스크롤 위치는
+      // 그대로이고, 아래의 가로 스크롤 판정에는 걸리지 않습니다. 브라우저
+      // 확대(Cmd +)는 이 배율을 바꾸지 않으므로 여기서 막히지 않습니다.
+      if (isPinchZoomed()) {
         if (this.gestureDirection !== null) this.endGestureCapture();
         return;
       }
@@ -533,6 +545,11 @@
       return delta * (axis === "y" ? window.innerHeight : window.innerWidth);
     }
     return delta;
+  }
+
+  function isPinchZoomed() {
+    const viewport = window.visualViewport;
+    return Boolean(viewport) && viewport.scale > MIN_PINCH_SCALE;
   }
 
   function isHorizontalScrollArea(path, deltaX) {
