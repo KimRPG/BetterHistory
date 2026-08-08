@@ -101,6 +101,7 @@ function loadContentModules({
   const document = {
     scrollingElement,
     documentElement: {
+      clientWidth: 1200,
       hasAttribute(name) {
         return rootAttributes.has(name);
       },
@@ -870,33 +871,39 @@ test("지도처럼 페이지가 가져가는 영역에서만 물러나고 그 �
   controller.endGestureCapture();
 });
 
-test("트랙패드로 확대해 둔 동안에는 옆으로 당겨도 물러난다", () => {
+test("확대해 둔 화면은 밀 자리가 남았을 때만 양보하고 끝에서는 제스처가 된다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
-  let prevented = false;
+  let preventedWhilePanning = false;
 
   controller.menu = createGestureMenuStub();
 
-  // 확대해 둔 상태. 옆으로 당기는 것은 확대된 화면을 미는 동작입니다.
-  runtime.window.visualViewport = { scale: 2 };
-  const zoomed = createFingerEvent(0, -20);
-  zoomed.preventDefault = () => {
-    prevented = true;
+  // 배율 2배. 레이아웃 뷰포트 1200px 안에서 시각 뷰포트 600px가 움직이므로
+  // 밀 수 있는 폭은 600px이고, 지금은 그 한가운데에 있습니다.
+  runtime.window.visualViewport = { scale: 2, width: 600, offsetLeft: 300 };
+  const panning = createFingerEvent(0, -20);
+  panning.preventDefault = () => {
+    preventedWhilePanning = true;
   };
-  controller.handleWheel(zoomed);
+  controller.handleWheel(panning);
 
-  assert.equal(prevented, false);
+  assert.equal(preventedWhilePanning, false);
   assert.equal(controller.gestureDirection, null);
 
-  // 원래 배율로 돌아오면 같은 손짓이 다시 제스처입니다.
-  runtime.window.visualViewport = { scale: 1 };
+  // 왼쪽 끝까지 밀었습니다. 같은 방향으로 더 당기면 밀 곳이 없으므로
+  // 확대해 둔 상태 그대로 제스처가 됩니다.
+  runtime.window.visualViewport.offsetLeft = 0;
   controller.handleWheel(createFingerEvent(1000, -20));
 
   assert.equal(controller.gestureDirection, "back");
   controller.endGestureCapture();
+
+  // 끝에 붙어 있어도 반대 방향은 아직 밀 자리가 남아 있습니다.
+  controller.handleWheel(createFingerEvent(2000, 20));
+  assert.equal(controller.gestureDirection, null);
 });
 
-test("제스처 도중 확대하면 이동하지 않고 접는다", () => {
+test("제스처 도중 확대한 화면을 밀기 시작하면 이동하지 않고 접는다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
 
@@ -904,7 +911,7 @@ test("제스처 도중 확대하면 이동하지 않고 접는다", () => {
   controller.handleWheel(createFingerEvent(0, -20));
   assert.equal(controller.gestureDirection, "back");
 
-  runtime.window.visualViewport = { scale: 1.5 };
+  runtime.window.visualViewport = { scale: 2, width: 600, offsetLeft: 300 };
   controller.handleWheel(createFingerEvent(20, -20));
 
   assert.equal(controller.gestureDirection, null);

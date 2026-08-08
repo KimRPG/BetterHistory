@@ -201,16 +201,18 @@
         return;
       }
 
+      if (!horizontal || absoluteX < 0.5) return;
+
       // 트랙패드로 확대해 둔 뒤에 옆으로 당기는 것은 확대된 화면을 미는
       // 동작입니다. 이때 움직이는 것은 시각 뷰포트라서 문서의 스크롤 위치는
-      // 그대로이고, 아래의 가로 스크롤 판정에는 걸리지 않습니다. 브라우저
-      // 확대(Cmd +)는 이 배율을 바꾸지 않으므로 여기서 막히지 않습니다.
-      if (isPinchZoomed()) {
+      // 그대로이고, 아래의 가로 스크롤 판정에는 걸리지 않습니다. 다만 문서
+      // 스크롤과 같은 규칙으로, 그 방향으로 실제 더 밀 수 있을 때에만
+      // 양보합니다 — 끝까지 밀어 놓고 더 당기는 것은 화면을 미는 동작이
+      // 아니므로 제스처로 받습니다.
+      if (isPinchPanArea(deltaX)) {
         if (this.gestureDirection !== null) this.endGestureCapture();
         return;
       }
-
-      if (!horizontal || absoluteX < 0.5) return;
 
       if (this.isInHorizontalScrollArea(event, deltaX)) return;
       if (!event.cancelable) return;
@@ -547,9 +549,20 @@
     return delta;
   }
 
-  function isPinchZoomed() {
+  // 확대해 둔 화면에서 시각 뷰포트를 이 방향으로 더 밀 수 있는지 봅니다.
+  // offsetLeft는 레이아웃 뷰포트 왼쪽 끝에서 시각 뷰포트 왼쪽 끝까지의
+  // 거리이므로, 밀 수 있는 최대치는 두 뷰포트 너비의 차이입니다.
+  function isPinchPanArea(deltaX) {
     const viewport = window.visualViewport;
-    return Boolean(viewport) && viewport.scale > MIN_PINCH_SCALE;
+    const root = document.documentElement;
+    if (!viewport || !root || viewport.scale <= MIN_PINCH_SCALE) return false;
+
+    const maxOffsetLeft = root.clientWidth - viewport.width;
+    if (maxOffsetLeft <= SCROLL_OVERFLOW_TOLERANCE) return false;
+
+    return deltaX < 0
+      ? viewport.offsetLeft > SCROLL_OVERFLOW_TOLERANCE
+      : viewport.offsetLeft < maxOffsetLeft - SCROLL_OVERFLOW_TOLERANCE;
   }
 
   function isHorizontalScrollArea(path, deltaX) {
