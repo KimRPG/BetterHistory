@@ -49,9 +49,6 @@
       this.site = toSiteKey(window.location?.href ?? "");
       this.gestureTriggered = false;
       this.gestureDirection = null;
-      // 제스처가 시작된 화면 쪽입니다. 뒤로/앞으로와 달리 설정에 따라 뒤집히지
-      // 않고 손가락이 실제로 움직인 방향만 따르므로, 따로 들고 있습니다.
-      this.gestureSide = null;
       this.gestureIdleTimer = null;
       this.pullDistance = 0;
       this.pendingPull = [];
@@ -272,17 +269,11 @@
         : this.lastFingerAt - this.fingerStartedAt;
       const progress = this.toProgress(heldMs);
 
-      // 표시가 나오는 쪽은 뒤로/앞으로가 아니라 손가락이 실제로 움직인 쪽으로
-      // 정합니다. 오른쪽으로 밀면 왼쪽 가장자리에서 밀려 나오는 것이 Chrome
-      // 기본 표시와 같은 규칙이고, 무엇보다 아래 shift와 방향이 같아야 합니다.
-      // 뒤로가기 방향을 바꾼 사람에게 이 둘이 어긋나면 표시가 나왔다 들어갔다
-      // 합니다 — 한쪽은 밀어내고 한쪽은 끌어당기게 되기 때문입니다.
-      this.gestureSide = fingerDelta > 0 ? "left" : "right";
       this.menu.showGestureIndicator({
         clientY: event.clientY,
         progress,
-        side: this.gestureSide,
-        shift: clamp(this.pullDistance * GESTURE_SHIFT_SCALE, GESTURE_SHIFT_MAX)
+        direction,
+        shift: this.getIndicatorShift(direction)
       });
 
       // 판정은 시간으로만 합니다. 손가락을 계속 대고 있는 시간이 기준을 넘으면
@@ -336,6 +327,19 @@
       const total = this.pendingPull.reduce((sum, value) => sum + value, 0);
       this.pendingPull.length = 0;
       return total;
+    }
+
+    // 표시는 뒤로가기면 왼쪽, 앞으로면 오른쪽 가장자리에 붙습니다. 밀려 나오는
+    // 부호를 정하는 것은 손가락이 아니라 그 가장자리입니다 — 왼쪽에서는
+    // 오른쪽으로(+), 오른쪽에서는 왼쪽으로(-) 나옵니다. 손가락이 움직인 부호를
+    // 그대로 쓰면 뒤로가기 방향을 뒤집은 사람에게서 둘이 반대가 되어, 당긴
+    // 시간은 밀어내는데 당긴 거리는 끌어당겨 표시가 나왔다 들어갔다 합니다.
+    // 한 제스처 안에서는 손가락 방향이 바뀌지 않으므로(바뀌면 제스처가 끊깁니다)
+    // 크기만 취하면 그대로 "얼마나 나왔는지"가 됩니다.
+    getIndicatorShift(direction) {
+      const outward = direction === "back" ? 1 : -1;
+      const pulled = Math.abs(this.pullDistance) * GESTURE_SHIFT_SCALE;
+      return clamp(outward * pulled, GESTURE_SHIFT_MAX);
     }
 
     // 한 이벤트가 기여할 수 있는 거리를 경과 시간에 비례해 제한합니다.
@@ -484,7 +488,7 @@
     }
 
     async openHistoryMenu(direction) {
-      const opened = await this.menu.open(direction, this.gestureSide);
+      const opened = await this.menu.open(direction);
       if (opened && this.pendingMenuSelection) {
         void this.navigateSelectedEntry();
       } else if (!opened) {
@@ -526,7 +530,6 @@
       this.gestureIdleTimer = null;
       this.gestureTriggered = false;
       this.gestureDirection = null;
-      this.gestureSide = null;
       this.pullDistance = 0;
       this.pendingPull = [];
       this.lastWheelAt = null;

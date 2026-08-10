@@ -99,7 +99,7 @@
       return Boolean(this.host && event.target === this.host);
     }
 
-    showGestureIndicator({ clientY, progress, side, shift = 0 }) {
+    showGestureIndicator({ clientY, progress, direction, shift = 0 }) {
       if (!this.ensure()) return;
 
       const clampedProgress = Math.min(1, Math.max(0.08, progress));
@@ -109,7 +109,7 @@
       this.indicator.style.setProperty("--progress", String(clampedProgress));
       this.indicator.style.setProperty("--shift", `${shift.toFixed(2)}px`);
       this.indicator.style.top = `${y}px`;
-      this.indicator.classList.toggle("from-right", side === "right");
+      this.indicator.classList.toggle("from-right", direction === "forward");
       this.indicator.classList.add("visible");
     }
 
@@ -131,10 +131,7 @@
       }, TOAST_DURATION_MS);
     }
 
-    // direction은 어느 쪽 기록을 보여 줄지, side는 화면 어느 쪽에 붙일지입니다.
-    // 둘은 같지 않습니다 — 뒤로가기 방향을 바꾼 사람은 왼쪽으로 밀어서 뒤로
-    // 갑니다. 목록은 인디케이터가 나온 자리에서 이어져야 하므로 side를 따릅니다.
-    async open(direction, side) {
+    async open(direction) {
       if (!this.ensure() || this.busy) return false;
 
       this.clearDismissTimer();
@@ -143,10 +140,7 @@
       this.selectedIndex = -1;
       this.selectionOffset = 0;
       this.busy = true;
-      this.panel.classList.toggle(
-        "from-right",
-        side === undefined ? direction === "forward" : side === "right"
-      );
+      this.panel.classList.toggle("from-right", direction === "forward");
       this.panel.classList.add("open");
       this.eyebrow.textContent = direction === "forward"
         ? "Forward history"

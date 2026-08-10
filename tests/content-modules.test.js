@@ -719,7 +719,7 @@ test("페이지 본문에는 어떤 변환도 걸지 않는다", () => {
   assert.equal(pageStyles.includes("overscroll-behavior-x: none"), true);
 });
 
-test("가로 제스처를 따라 인디케이터가 손가락 방향으로 움직인다", () => {
+test("당길수록 인디케이터가 가장자리에서 더 밀려 나온다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const shifts = [];
@@ -738,7 +738,43 @@ test("가로 제스처를 따라 인디케이터가 손가락 방향으로 움�
   assert.equal(controller.pullDistance, 0);
 });
 
-test("인디케이터는 뒤로가기 방향 설정이 아니라 손가락이 움직인 쪽에서 나온다", () => {
+test("뒤로가기 방향을 뒤집어도 표시는 같은 쪽에서 같은 방향으로 밀려 나온다", () => {
+  const runtime = loadContentModules();
+  const shown = [];
+  const pullTwice = (gestureDirection, deltaX) => {
+    const controller = new runtime.namespace.GestureController();
+    controller.menu = createGestureMenuStub({
+      showGestureIndicator: (options) => shown.push(options)
+    });
+    controller.settings.gestureDirection = gestureDirection;
+    controller.handleWheel(createWheelEvent(0, deltaX));
+    controller.handleWheel(createWheelEvent(16, deltaX));
+    assert.equal(controller.gestureDirection, "back");
+    controller.endGestureCapture();
+  };
+
+  // 기본 설정에서는 오른쪽으로, 뒤집으면 왼쪽으로 밀어서 뒤로 갑니다. 어느
+  // 쪽이든 뒤로가기이므로 표시는 왼쪽 가장자리에 붙습니다.
+  pullTwice("right", -20);
+  pullTwice("left", 20);
+
+  const [defaultFirst, defaultSecond, flippedFirst, flippedSecond] = shown;
+  assert.equal(shown.length, 4);
+  for (const options of shown) assert.equal(options.direction, "back");
+
+  // 붙은 쪽이 왼쪽이면 밀려 나오는 부호는 양수여야 합니다. 손가락이 어느 쪽으로
+  // 움직였는지와 무관하게 당길수록 커져야 나왔다 들어갔다 하지 않습니다.
+  assert.equal(defaultFirst.shift > 0, true);
+  assert.equal(defaultSecond.shift > defaultFirst.shift, true);
+  assert.equal(flippedFirst.shift > 0, true);
+  assert.equal(flippedSecond.shift > flippedFirst.shift, true);
+  assert.deepEqual(
+    [flippedFirst.shift, flippedSecond.shift],
+    [defaultFirst.shift, defaultSecond.shift]
+  );
+});
+
+test("앞으로가기 표시는 오른쪽 가장자리에서 반대 부호로 나온다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();
   const shown = [];
@@ -746,48 +782,14 @@ test("인디케이터는 뒤로가기 방향 설정이 아니라 손가락이 �
   controller.menu = createGestureMenuStub({
     showGestureIndicator: (options) => shown.push(options)
   });
-
-  // 기본 설정에서 오른쪽으로 밀면 뒤로가기이고, 표시는 왼쪽에서 나옵니다.
-  controller.settings.gestureDirection = "right";
+  controller.settings.gestureDirection = "left";
   controller.handleWheel(createWheelEvent(0, -20));
-  assert.equal(controller.gestureDirection, "back");
-  assert.equal(shown.at(-1).side, "left");
-  controller.endGestureCapture();
+  controller.handleWheel(createWheelEvent(16, -20));
 
-  // 설정을 뒤집으면 같은 뒤로가기를 왼쪽으로 밀어서 합니다. 표시도 반대쪽에서
-  // 나와야 하고, 나오는 쪽과 밀리는 부호가 어긋나면 나왔다 들어갔다 합니다.
-  controller.settings.gestureDirection = "left";
-  controller.handleWheel(createWheelEvent(1000, 20));
-  assert.equal(controller.gestureDirection, "back");
-  assert.equal(shown.at(-1).side, "right");
-  assert.equal(shown.at(-1).shift < 0, true);
-  controller.endGestureCapture();
-
-  // 왼쪽에서 나올 때는 반대 부호여야 같은 방향으로 밀려 나옵니다.
-  assert.equal(shown[0].side, "left");
-  assert.equal(shown[0].shift > 0, true);
-});
-
-test("메뉴도 인디케이터가 나온 쪽에서 이어진다", () => {
-  const runtime = loadContentModules();
-  const controller = new runtime.namespace.GestureController();
-  const opened = [];
-
-  controller.menu = createGestureMenuStub({
-    open: (direction, side) => {
-      opened.push({ direction, side });
-      return Promise.resolve(true);
-    }
-  });
-
-  // 뒤로가기를 왼쪽으로 바꾼 사람입니다. 뒤로 가는 목록이지만 손가락은
-  // 왼쪽으로 움직였으므로 오른쪽 가장자리에서 이어져야 합니다.
-  controller.settings.gestureDirection = "left";
-  for (let index = 0; index <= 12; index += 1) {
-    controller.handleWheel(createFingerEvent(index * 16, 8));
-  }
-
-  assert.deepEqual(opened, [{ direction: "back", side: "right" }]);
+  assert.equal(controller.gestureDirection, "forward");
+  assert.equal(shown.at(-1).direction, "forward");
+  assert.equal(shown[0].shift < 0, true);
+  assert.equal(shown[1].shift < shown[0].shift, true);
   controller.endGestureCapture();
 });
 
