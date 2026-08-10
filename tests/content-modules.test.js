@@ -738,6 +738,59 @@ test("가로 제스처를 따라 인디케이터가 손가락 방향으로 움�
   assert.equal(controller.pullDistance, 0);
 });
 
+test("인디케이터는 뒤로가기 방향 설정이 아니라 손가락이 움직인 쪽에서 나온다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const shown = [];
+
+  controller.menu = createGestureMenuStub({
+    showGestureIndicator: (options) => shown.push(options)
+  });
+
+  // 기본 설정에서 오른쪽으로 밀면 뒤로가기이고, 표시는 왼쪽에서 나옵니다.
+  controller.settings.gestureDirection = "right";
+  controller.handleWheel(createWheelEvent(0, -20));
+  assert.equal(controller.gestureDirection, "back");
+  assert.equal(shown.at(-1).side, "left");
+  controller.endGestureCapture();
+
+  // 설정을 뒤집으면 같은 뒤로가기를 왼쪽으로 밀어서 합니다. 표시도 반대쪽에서
+  // 나와야 하고, 나오는 쪽과 밀리는 부호가 어긋나면 나왔다 들어갔다 합니다.
+  controller.settings.gestureDirection = "left";
+  controller.handleWheel(createWheelEvent(1000, 20));
+  assert.equal(controller.gestureDirection, "back");
+  assert.equal(shown.at(-1).side, "right");
+  assert.equal(shown.at(-1).shift < 0, true);
+  controller.endGestureCapture();
+
+  // 왼쪽에서 나올 때는 반대 부호여야 같은 방향으로 밀려 나옵니다.
+  assert.equal(shown[0].side, "left");
+  assert.equal(shown[0].shift > 0, true);
+});
+
+test("메뉴도 인디케이터가 나온 쪽에서 이어진다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  const opened = [];
+
+  controller.menu = createGestureMenuStub({
+    open: (direction, side) => {
+      opened.push({ direction, side });
+      return Promise.resolve(true);
+    }
+  });
+
+  // 뒤로가기를 왼쪽으로 바꾼 사람입니다. 뒤로 가는 목록이지만 손가락은
+  // 왼쪽으로 움직였으므로 오른쪽 가장자리에서 이어져야 합니다.
+  controller.settings.gestureDirection = "left";
+  for (let index = 0; index <= 12; index += 1) {
+    controller.handleWheel(createFingerEvent(index * 16, 8));
+  }
+
+  assert.deepEqual(opened, [{ direction: "back", side: "right" }]);
+  controller.endGestureCapture();
+});
+
 test("인디케이터 이동량은 상한을 넘지 않는다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();

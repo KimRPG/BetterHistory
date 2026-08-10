@@ -37,7 +37,7 @@
     }
     .indicator.visible { display: flex; }
     .indicator svg { height: 34px; width: 34px; }
-    .indicator.forward {
+    .indicator.from-right {
       justify-content: flex-start;
       left: auto;
       padding-left: 8px;
@@ -49,7 +49,7 @@
         -50%
       );
     }
-    .indicator.forward svg { transform: rotate(180deg); }
+    .indicator.from-right svg { transform: rotate(180deg); }
     .panel {
       animation: enter 150ms cubic-bezier(.2, .8, .2, 1);
       background: rgba(250, 250, 252, 0.96);
@@ -69,8 +69,8 @@
       width: min(390px, calc(100vw - 36px));
     }
     .panel.open { display: block; }
-    .panel.forward {
-      animation-name: enter-forward;
+    .panel.from-right {
+      animation-name: enter-from-right;
       left: auto;
       right: 18px;
     }
@@ -78,7 +78,7 @@
       from { opacity: 0; transform: translate(-10px, -50%) scale(.98); }
       to { opacity: 1; transform: translate(0, -50%) scale(1); }
     }
-    @keyframes enter-forward {
+    @keyframes enter-from-right {
       from { opacity: 0; transform: translate(10px, -50%) scale(.98); }
       to { opacity: 1; transform: translate(0, -50%) scale(1); }
     }
@@ -151,7 +151,7 @@
       box-shadow: inset 3px 0 #2563eb;
       outline: none;
     }
-    .panel.forward .entry.selected { box-shadow: inset -3px 0 #2563eb; }
+    .panel.from-right .entry.selected { box-shadow: inset -3px 0 #2563eb; }
     .entry.pending { opacity: .55; pointer-events: none; }
     .site-mark {
       align-items: center;
@@ -267,7 +267,7 @@
       .close:hover, .close:focus-visible { background: rgba(255,255,255,.08); }
       .entry:hover, .entry:focus-visible { background: rgba(96,165,250,.14); }
       .entry.selected { background: rgba(96,165,250,.2); box-shadow: inset 3px 0 #60a5fa; }
-      .panel.forward .entry.selected { box-shadow: inset -3px 0 #60a5fa; }
+      .panel.from-right .entry.selected { box-shadow: inset -3px 0 #60a5fa; }
       .site-mark { background: #454a52; border-color: rgba(255,255,255,.06); color: #e2e6eb; }
       .gesture-help { background: rgba(96,165,250,.07); border-top-color: rgba(255,255,255,.09); color: #aeb4bd; }
       .gesture-help b { color: #60a5fa; }

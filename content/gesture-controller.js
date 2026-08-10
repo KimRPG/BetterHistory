@@ -49,6 +49,9 @@
       this.site = toSiteKey(window.location?.href ?? "");
       this.gestureTriggered = false;
       this.gestureDirection = null;
+      // 제스처가 시작된 화면 쪽입니다. 뒤로/앞으로와 달리 설정에 따라 뒤집히지
+      // 않고 손가락이 실제로 움직인 방향만 따르므로, 따로 들고 있습니다.
+      this.gestureSide = null;
       this.gestureIdleTimer = null;
       this.pullDistance = 0;
       this.pendingPull = [];
@@ -269,10 +272,16 @@
         : this.lastFingerAt - this.fingerStartedAt;
       const progress = this.toProgress(heldMs);
 
+      // 표시가 나오는 쪽은 뒤로/앞으로가 아니라 손가락이 실제로 움직인 쪽으로
+      // 정합니다. 오른쪽으로 밀면 왼쪽 가장자리에서 밀려 나오는 것이 Chrome
+      // 기본 표시와 같은 규칙이고, 무엇보다 아래 shift와 방향이 같아야 합니다.
+      // 뒤로가기 방향을 바꾼 사람에게 이 둘이 어긋나면 표시가 나왔다 들어갔다
+      // 합니다 — 한쪽은 밀어내고 한쪽은 끌어당기게 되기 때문입니다.
+      this.gestureSide = fingerDelta > 0 ? "left" : "right";
       this.menu.showGestureIndicator({
         clientY: event.clientY,
         progress,
-        direction,
+        side: this.gestureSide,
         shift: clamp(this.pullDistance * GESTURE_SHIFT_SCALE, GESTURE_SHIFT_MAX)
       });
 
@@ -475,7 +484,7 @@
     }
 
     async openHistoryMenu(direction) {
-      const opened = await this.menu.open(direction);
+      const opened = await this.menu.open(direction, this.gestureSide);
       if (opened && this.pendingMenuSelection) {
         void this.navigateSelectedEntry();
       } else if (!opened) {
@@ -517,6 +526,7 @@
       this.gestureIdleTimer = null;
       this.gestureTriggered = false;
       this.gestureDirection = null;
+      this.gestureSide = null;
       this.pullDistance = 0;
       this.pendingPull = [];
       this.lastWheelAt = null;
