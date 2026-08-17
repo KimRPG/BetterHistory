@@ -122,6 +122,9 @@
   "popupDirectionLeft": {
     "message": "왼쪽으로 스와이프"
   },
+  "popupCloseOnDeadEnd": {
+    "message": "기록이 없으면 탭 닫기"
+  },
   "popupThreshold": {
     "message": "멈춘 뒤 메뉴가 열리기까지"
   },

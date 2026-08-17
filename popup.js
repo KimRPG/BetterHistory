@@ -18,6 +18,7 @@ const siteRow = document.querySelector("#site-row");
 const siteHostLabel = document.querySelector("#site-host");
 const siteEnabledInput = document.querySelector("#site-enabled");
 const directionInput = document.querySelector("#gesture-direction");
+const closeOnDeadEndInput = document.querySelector("#close-on-dead-end");
 const languageInput = document.querySelector("#language");
 const holdStillGroup = document.querySelector("#hold-still");
 const status = document.querySelector("#status");
@@ -118,6 +119,7 @@ function createSpan(className, text) {
 function applyValues(settings) {
   renderSite(settings);
   directionInput.value = settings.gestureDirection;
+  closeOnDeadEndInput.checked = settings.closeOnDeadEnd;
   languageInput.value = settings.language;
   for (const input of holdStillGroup.querySelectorAll("input")) {
     input.checked = Number(input.value) === settings.holdStillMs;
@@ -136,6 +138,7 @@ function renderSite(settings) {
 function currentSettings() {
   return sanitizeSettings({
     gestureDirection: directionInput.value,
+    closeOnDeadEnd: closeOnDeadEndInput.checked,
     holdStillMs: holdStillGroup.querySelector("input:checked")?.value,
     language: languageInput.value,
     disabledSites: nextDisabledSites()
@@ -153,6 +156,7 @@ function nextDisabledSites() {
 
 siteEnabledInput.addEventListener("change", save);
 directionInput.addEventListener("change", save);
+closeOnDeadEndInput.addEventListener("change", save);
 holdStillGroup.addEventListener("change", save);
 
 // 목록을 다시 그리면 선택값이 지워지므로, 바꾸기 전 상태를 들고 있어야 합니다.

@@ -283,11 +283,18 @@ test("팝업과 콘텐츠 스크립트가 같은 설정 정의를 공유한다",
     }))),
     {
       gestureDirection: "left",
+      closeOnDeadEnd: true,
       holdStillMs: 300,
       language: "auto",
       disabledSites: ["news.example.com"]
     }
   );
+
+  // 저장된 값이 없으면 켜진 것으로 봅니다. 예전 설정을 그대로 들고 있는
+  // 사람에게 없던 항목이 꺼진 채로 나타나면 안 됩니다.
+  assert.equal(sanitizeSettings({}).closeOnDeadEnd, true);
+  assert.equal(sanitizeSettings({ closeOnDeadEnd: false }).closeOnDeadEnd, false);
+  assert.equal(popupHtml.includes('id="close-on-dead-end"'), true);
   // 목록에 있는 값은 그대로, 없는 값은 기본값으로 되돌아갑니다.
   for (const value of holdValues) {
     assert.equal(sanitizeSettings({ holdStillMs: value }).holdStillMs, value);

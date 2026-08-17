@@ -664,6 +664,43 @@ test("연 탭이 없어도 돌아갈 기록이 없으면 탭을 닫는다", asyn
   ]);
 });
 
+test("탭 닫기를 끄면 돌아갈 기록이 없어도 아무 일도 하지 않는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: [
+      { id: 7, windowId: 1, url: "https://example.com/typed" },
+      { id: 8, windowId: 1, url: "https://example.com/other" }
+    ],
+    settings: { closeOnDeadEnd: false }
+  });
+
+  const response = await navigateOneStep(runtime);
+
+  // 아무 일도 할 수 없는 한 단계 제스처는 오류가 아니라 조용히 무시됩니다.
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: false
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), []);
+});
+
+test("탭 닫기를 끄면 연 탭이 있어도 제스처로는 닫지 않는다", async () => {
+  const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
+    tabs: [
+      { id: 7, windowId: 1, openerTabId: 3 },
+      { id: 3, windowId: 1, url: "https://example.com/list" }
+    ],
+    settings: { closeOnDeadEnd: false }
+  });
+
+  const response = await navigateOneStep(runtime);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), {
+    ok: true,
+    navigated: false
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(tabActions(runtime))), []);
+});
+
 test("연 탭이 이미 닫혔어도 돌아갈 기록이 없으면 탭을 닫는다", async () => {
   const runtime = loadWorker(NO_BACK_HISTORY, MISSING_BACK_PAGE, {
     tabs: [

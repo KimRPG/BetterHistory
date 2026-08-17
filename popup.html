@@ -40,6 +40,17 @@
       </section>
 
       <section class="row">
+        <span data-i18n="popupCloseOnDeadEnd"></span>
+        <label class="switch">
+          <!-- 켜진 것이 기본값입니다. 저장된 값을 읽기 전에 꺼진 채로 그려지면
+               끈 적이 없는 사람에게 꺼진 것처럼 보입니다. -->
+          <input id="close-on-dead-end" type="checkbox" checked>
+          <span aria-hidden="true"></span>
+          <span class="sr-only" data-i18n="popupCloseOnDeadEnd"></span>
+        </label>
+      </section>
+
+      <section class="row">
         <label for="language" data-i18n="popupLanguage"></label>
         <select id="language"></select>
       </section>

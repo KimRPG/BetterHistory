@@ -122,6 +122,9 @@
   "popupDirectionLeft": {
     "message": "向左滑动"
   },
+  "popupCloseOnDeadEnd": {
+    "message": "没有历史记录时关闭标签页"
+  },
   "popupThreshold": {
     "message": "停住多久后打开菜单"
   },

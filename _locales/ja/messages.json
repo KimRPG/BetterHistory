@@ -122,6 +122,9 @@
   "popupDirectionLeft": {
     "message": "左にスワイプ"
   },
+  "popupCloseOnDeadEnd": {
+    "message": "履歴がない場合はタブを閉じる"
+  },
   "popupThreshold": {
     "message": "止めてからメニューが開くまで"
   },

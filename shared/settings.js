@@ -5,6 +5,10 @@
 
   const DEFAULT_SETTINGS = Object.freeze({
     gestureDirection: "right",
+    // 뒤로 갈 기록이 없는 탭에서 뒤로 제스처를 했을 때 그 탭을 닫습니다.
+    // 링크로 열린 탭에서 원래 화면으로 돌아가는 가장 빠른 길이라 켜 두지만,
+    // 탭이 사라지는 것 자체를 원하지 않는 사람도 있으므로 끌 수 있게 둡니다.
+    closeOnDeadEnd: true,
     holdStillMs: 450,
     language: "auto",
     disabledSites: Object.freeze([])
@@ -89,6 +93,9 @@
 
     return {
       gestureDirection: candidate?.gestureDirection === "left" ? "left" : "right",
+      // 저장된 값이 없으면 켜진 것으로 봅니다. 예전 설정을 그대로 들고 있는
+      // 사람에게 없던 항목이 꺼진 채로 나타나면 안 됩니다.
+      closeOnDeadEnd: candidate?.closeOnDeadEnd !== false,
       holdStillMs: choice,
       language: LANGUAGE_CHOICES
         .some((option) => option.value === candidate?.language)

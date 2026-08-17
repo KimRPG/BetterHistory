@@ -196,6 +196,18 @@ async function returnToOpener(tabId) {
 // 순간 창이 통째로 사라지는데 돌아갈 곳도 정해져 있지 않으므로, 뒤로가기 한
 // 번으로 시킬 만한 일이 아닙니다. 연 탭이 있으면 이야기가 다릅니다 — 어디서
 // 왔는지가 분명하니 창이 닫혀도 그쪽으로 이어집니다.
+// 여기까지 오는 것은 뒤로 갈 곳이 없는 제스처뿐이라 자주 읽지 않습니다. 값을
+// 들고 있으면 팝업에서 바꾼 것을 따라가는 코드가 따로 필요하므로 그때 읽습니다.
+async function shouldCloseOnDeadEnd() {
+  try {
+    const stored = await chrome.storage.sync.get({ closeOnDeadEnd: true });
+    return stored.closeOnDeadEnd !== false;
+  } catch {
+    // 설정을 못 읽었으면 기본 동작대로 둡니다.
+    return true;
+  }
+}
+
 async function closeDeadEndTab(tabId) {
   const tab = await getTab(tabId);
   if (!tab) return false;
@@ -270,8 +282,9 @@ async function navigateOneStep(tabId, direction = "back") {
     if (!isUnavailableHistoryError(error)) throw error;
 
     // 돌아갈 기록이 없는 탭입니다. 뒤로 제스처는 이 탭을 닫아 그 전에 보던
-    // 화면으로 돌려보냅니다.
-    return direction === "back" ? closeDeadEndTab(tabId) : false;
+    // 화면으로 돌려보냅니다. 이 동작을 끈 사람에게는 아무 일도 하지 않습니다.
+    if (direction !== "back") return false;
+    return (await shouldCloseOnDeadEnd()) ? closeDeadEndTab(tabId) : false;
   }
 }
 
