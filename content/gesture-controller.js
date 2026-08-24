@@ -40,6 +40,10 @@
   // 확대하지 않았을 때의 배율은 1입니다. 사용자가 실제로 벌린 것과 계산 과정에서
   // 1을 아주 조금 넘긴 값을 가르기 위해 여유를 둡니다.
   const MIN_PINCH_SCALE = 1.01;
+  // 세로로 스크롤하던 손가락이 잠깐 비스듬해지는 것만으로 가로 제스처가
+  // 시작되어서는 안 됩니다. 세로 입력 직후 이 시간 동안은 새 제스처를 받지
+  // 않습니다. 이미 시작된 제스처는 건드리지 않습니다 — 막는 것은 시작뿐입니다.
+  const AXIS_LOCK_MS = 250;
 
   class GestureController {
     constructor() {
@@ -49,6 +53,10 @@
       this.site = toSiteKey(window.location?.href ?? "");
       this.gestureTriggered = false;
       this.gestureDirection = null;
+      // 마지막으로 세로 입력을 본 시각입니다. 제스처가 끝나도 지우지 않습니다
+      // — 스크롤과 제스처는 별개라, 제스처 하나가 끝났다고 스크롤하던 사실이
+      // 없어지지는 않습니다.
+      this.lastVerticalAt = null;
       this.gestureIdleTimer = null;
       this.pullDistance = 0;
       this.pendingPull = [];
@@ -201,6 +209,14 @@
         return;
       }
 
+      // 세로로 움직인 입력을 적어 둡니다. 아래에서 가로 제스처의 시작을
+      // 잠그는 데 씁니다. 관성 꼬리는 이미 손을 뗀 뒤라 잠그지 않습니다 —
+      // 그때부터 오는 가로 입력은 새로 손을 대고 하는 손짓입니다. 관성인지
+      // 알 수 없는 브라우저에서는 잠그는 쪽으로 둡니다.
+      if (absoluteY > 0.5 && absoluteY > absoluteX * HORIZONTAL_RATIO) {
+        if (event.momentum !== true) this.lastVerticalAt = event.timeStamp;
+      }
+
       if (!horizontal || absoluteX < 0.5) return;
 
       // 트랙패드로 확대해 둔 뒤에 옆으로 당기는 것은 확대된 화면을 미는
@@ -211,6 +227,13 @@
       // 아니므로 제스처로 받습니다.
       if (isPinchPanArea(deltaX)) {
         if (this.gestureDirection !== null) this.endGestureCapture();
+        return;
+      }
+
+      // 세로로 스크롤한 직후입니다. 손가락이 잠깐 비스듬해진 것을 제스처로
+      // 받으면 스크롤하다 뒤로 가 버립니다. 기본 동작을 막지 않고 그대로
+      // 흘려보내 페이지가 계속 스크롤되게 합니다.
+      if (this.gestureDirection === null && this.isAxisLocked(event.timeStamp)) {
         return;
       }
 
@@ -327,6 +350,11 @@
       const total = this.pendingPull.reduce((sum, value) => sum + value, 0);
       this.pendingPull.length = 0;
       return total;
+    }
+
+    isAxisLocked(timeStamp) {
+      return this.lastVerticalAt !== null &&
+        timeStamp - this.lastVerticalAt < AXIS_LOCK_MS;
     }
 
     // 표시는 뒤로가기면 왼쪽, 앞으로면 오른쪽 가장자리에 붙습니다. 밀려 나오는

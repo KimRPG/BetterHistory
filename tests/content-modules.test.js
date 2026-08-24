@@ -726,6 +726,43 @@ test("페이지 본문에는 어떤 변환도 걸지 않는다", () => {
   assert.equal(pageStyles.includes("overscroll-behavior-x: none"), true);
 });
 
+test("세로 입력 직후의 가로 입력은 기본 동작을 막지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+  let prevented = false;
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createWheelEvent(0, 0, -30));
+
+  // 스크롤하던 손가락이 잠깐 비스듬해진 것입니다. 여기서 기본 동작을 막으면
+  // 제스처는 시작하지 않으면서 페이지 스크롤만 끊깁니다.
+  const drift = createFingerEvent(16, -20);
+  drift.preventDefault = () => {
+    prevented = true;
+  };
+  controller.handleWheel(drift);
+
+  assert.equal(prevented, false);
+  assert.equal(controller.gestureDirection, null);
+});
+
+test("이미 시작한 제스처는 세로 입력이 끼어들어도 끊기지 않는다", () => {
+  const runtime = loadContentModules();
+  const controller = new runtime.namespace.GestureController();
+
+  controller.menu = createGestureMenuStub();
+  controller.handleWheel(createFingerEvent(0, -20));
+  assert.equal(controller.gestureDirection, "back");
+
+  // 잠그는 것은 시작뿐입니다. 진행 중인 제스처를 세로 입력이 끊으면 비스듬히
+  // 당기는 사람의 제스처가 중간에 죽습니다.
+  controller.handleWheel(createWheelEvent(16, 0, -30));
+  controller.handleWheel(createFingerEvent(32, -20));
+
+  assert.equal(controller.gestureDirection, "back");
+  controller.endGestureCapture();
+});
+
 test("당길수록 인디케이터가 가장자리에서 더 밀려 나온다", () => {
   const runtime = loadContentModules();
   const controller = new runtime.namespace.GestureController();

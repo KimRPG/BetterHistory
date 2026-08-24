@@ -315,6 +315,56 @@ test("기록이 없는 탭에서는 길게 당겨도 메뉴를 열지 않는다"
   assert.equal(harness.messages[0].direction, "back");
 });
 
+// --- 실수로 하는 제스처 ---------------------------------------------------
+// 오작동의 가장 큰 원인은 세로로 스크롤하던 손가락이 잠깐 비스듬해지는 것입니다.
+// 가로 판정 기준이 |dx| > |dy| x 1.25라 그 순간이 그대로 통과합니다.
+
+test("세로로 스크롤하다 손가락이 비스듬해져도 뒤로 가지 않는다", () => {
+  const harness = createController();
+
+  for (let index = 0; index < 5; index += 1) {
+    harness.wheel(0, -40, false);
+    harness.advance(16);
+  }
+  // 스크롤하던 손가락이 마지막에 옆으로 쏠렸습니다.
+  harness.wheel(-30, 0, false);
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "none");
+});
+
+test("스크롤을 멈추고 나면 뒤로 제스처가 다시 동작한다", () => {
+  const harness = createController();
+
+  harness.wheel(0, -40, false);
+  harness.advance(300);
+
+  for (let index = 0; index < 3; index += 1) {
+    harness.wheel(-30, 0, false);
+    harness.advance(16);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "back");
+});
+
+test("관성으로 흘러가는 세로 스크롤은 제스처를 잠그지 않는다", () => {
+  const harness = createController();
+
+  // 관성이라는 것은 이미 손을 뗐다는 뜻입니다. 그 뒤의 가로 입력은 새로 손을
+  // 대고 하는 손짓이므로 잠글 이유가 없습니다.
+  harness.wheel(0, -40, true);
+  harness.advance(16);
+
+  for (let index = 0; index < 3; index += 1) {
+    harness.wheel(-30, 0, false);
+    harness.advance(16);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "back");
+});
+
 test("기록이 있는 탭에서는 길게 당기면 메뉴가 열린다", () => {
   const harness = createController({ historyLength: 2 });
 
