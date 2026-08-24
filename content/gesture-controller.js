@@ -44,6 +44,12 @@
   // 시작되어서는 안 됩니다. 세로 입력 직후 이 시간 동안은 새 제스처를 받지
   // 않습니다. 이미 시작된 제스처는 건드리지 않습니다 — 막는 것은 시작뿐입니다.
   const AXIS_LOCK_MS = 250;
+  // 탭이 닫히는 제스처만 손가락으로 이만큼 끌어야 실행됩니다. 뒤로 한 단계는
+  // 앞으로 가면 그만이지만 닫힌 탭은 그렇지 않으므로, 되돌리기 어려운 쪽에만
+  // 문턱을 둡니다. 여기서 거리를 쓰는 것은 "메뉴냐 한 단계냐"를 가르는 것이
+  // 아니라 동작 하나에 문턱을 두는 것이라, 시간으로만 가른다는 규칙과 부딪히지
+  // 않습니다.
+  const CLOSE_PULL_PX = 64;
 
   class GestureController {
     constructor() {
@@ -292,12 +298,31 @@
         : this.lastFingerAt - this.fingerStartedAt;
       const progress = this.toProgress(heldMs);
 
+      // 탭이 닫히는 제스처는 표시도 판정도 끌어당긴 거리를 따릅니다. 표시가
+      // 가득 차는 순간이 곧 실행되는 지점이라, 무엇이 일어날지 보고 나서 손을
+      // 되돌려 취소할 수 있습니다.
+      const closing = this.willCloseTab(direction);
       this.menu.showGestureIndicator({
         clientY: event.clientY,
-        progress,
+        progress: closing ? this.toClosePullProgress() : progress,
         direction,
+        closing,
         shift: this.getIndicatorShift(direction)
       });
+
+      if (closing) {
+        if (Math.abs(this.pullDistance) >= CLOSE_PULL_PX) {
+          this.finishGesture(() => this.navigateOneStep(direction));
+        } else {
+          // 아직 덜 끌었습니다. 제스처를 살려 두어 계속 끌 수 있게 하고,
+          // 여기서 손을 떼면 아무 일도 일어나지 않습니다.
+          this.restartIdleTimer(
+            () => this.endGestureCapture(),
+            this.toIdleDelay(this.toClosePullProgress())
+          );
+        }
+        return;
+      }
 
       // 판정은 시간으로만 합니다. 손가락을 계속 대고 있는 시간이 기준을 넘으면
       // 메뉴입니다. 얼마나 멀리 갔는지는 보지 않습니다 — 거리를 함께 보면 크게
@@ -357,6 +382,20 @@
         timeStamp - this.lastVerticalAt < AXIS_LOCK_MS;
     }
 
+    // 뒤로 갈 기록이 없는 탭에서의 뒤로 제스처는 이 탭을 닫습니다. 워커에
+    // 물어보지 않고도 여기서 알 수 있습니다 — 메뉴를 열지 말지 가르는 값과
+    // 같은 값입니다. 기록이 앞쪽에만 남은 드문 경우는 여기서 걸러지지 않고
+    // 예전처럼 워커가 처리합니다.
+    willCloseTab(direction) {
+      return direction === "back" && !this.hasTabHistory();
+    }
+
+    // 탭 닫기 표시는 당긴 시간이 아니라 끌어당긴 거리를 보여 줍니다. 가득
+    // 차는 순간이 곧 실행되는 지점이라, 실행 전에 무엇이 일어날지 보입니다.
+    toClosePullProgress() {
+      return Math.min(1, Math.abs(this.pullDistance) / CLOSE_PULL_PX);
+    }
+
     // 표시는 뒤로가기면 왼쪽, 앞으로면 오른쪽 가장자리에 붙습니다. 밀려 나오는
     // 부호를 정하는 것은 손가락이 아니라 그 가장자리입니다 — 왼쪽에서는
     // 오른쪽으로(+), 오른쪽에서는 왼쪽으로(-) 나옵니다. 손가락이 움직인 부호를
@@ -405,6 +444,10 @@
       this.endGestureCapture();
 
       if (!shouldAct) return;
+      // 탭이 닫히는 제스처는 거리로만 판정합니다. 문턱을 넘겼다면 handleWheel
+      // 에서 이미 실행됐으므로, 여기까지 왔다는 것은 덜 끌고 손을 뗐다는
+      // 뜻입니다.
+      if (this.willCloseTab(direction)) return;
       if (opensMenu) void this.openHistoryMenu(direction);
       else void this.navigateOneStep(direction);
     }

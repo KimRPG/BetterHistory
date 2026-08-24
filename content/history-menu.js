@@ -46,8 +46,11 @@
       this.shadow.innerHTML = `
         <style>${namespace.MENU_STYLES}</style>
         <div class="indicator" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="glyph glyph-move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 12H5"/><path d="m11 18-6-6 6-6"/>
+          </svg>
+          <svg class="glyph glyph-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
           </svg>
         </div>
         <section class="panel" role="dialog" aria-modal="false" aria-labelledby="gbh-title">
@@ -99,7 +102,7 @@
       return Boolean(this.host && event.target === this.host);
     }
 
-    showGestureIndicator({ clientY, progress, direction, shift = 0 }) {
+    showGestureIndicator({ clientY, progress, direction, closing, shift = 0 }) {
       if (!this.ensure()) return;
 
       const clampedProgress = Math.min(1, Math.max(0.08, progress));
@@ -110,6 +113,9 @@
       this.indicator.style.setProperty("--shift", `${shift.toFixed(2)}px`);
       this.indicator.style.top = `${y}px`;
       this.indicator.classList.toggle("from-right", direction === "forward");
+      // 이 제스처가 탭을 닫는다는 표시입니다. 화살표 대신 ✕가 나오고, 끌수록
+      // 붉게 차오릅니다. 가득 찬 순간이 실행되는 지점입니다.
+      this.indicator.classList.toggle("closing", closing === true);
       this.indicator.classList.add("visible");
     }
 

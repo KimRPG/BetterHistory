@@ -365,6 +365,30 @@ test("관성으로 흘러가는 세로 스크롤은 제스처를 잠그지 않�
   assert.equal(harness.outcome(), "back");
 });
 
+test("기록이 없는 탭은 살짝 튕겨서는 닫히지 않는다", () => {
+  const harness = createController({ historyLength: 1 });
+
+  // 20px 두 번 = 40px. 문턱(64px)에 못 미칩니다.
+  harness.wheel(-20, 0, false);
+  harness.advance(16);
+  harness.wheel(-20, 0, false);
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "none");
+});
+
+test("기록이 없는 탭도 끝까지 끌면 닫힌다", () => {
+  const harness = createController({ historyLength: 1 });
+
+  for (let index = 0; index < 4; index += 1) {
+    harness.wheel(-20, 0, false);
+    harness.advance(16);
+  }
+  harness.advance(1200);
+
+  assert.equal(harness.outcome(), "back");
+});
+
 test("기록이 있는 탭에서는 길게 당기면 메뉴가 열린다", () => {
   const harness = createController({ historyLength: 2 });
 

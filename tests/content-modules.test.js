@@ -626,7 +626,7 @@ test("관성 여부를 모르는 Chrome에서는 멈춤을 홀드로 보지 않�
   });
 });
 
-test("기록이 없는 탭에서는 멈춰도 메뉴 대신 한 단계 이동한다", async () => {
+test("기록이 없는 탭에서는 메뉴 대신 탭을 닫는다", async () => {
   const runtime = loadContentModules({ historyLength: 1 });
   const controller = new runtime.namespace.GestureController();
   const openedDirections = [];
@@ -637,7 +637,8 @@ test("기록이 없는 탭에서는 멈춰도 메뉴 대신 한 단계 이동한
       return Promise.resolve(true);
     }
   });
-  // 홀드로 볼 만큼(80ms) 당겼지만 보여 줄 기록이 없습니다.
+  // 보여 줄 기록이 없으므로 메뉴가 아니라 탭 닫기입니다. 20px씩 여섯 번이라
+  // 닫기 문턱(64px)을 넘겨, 손을 떼기 전에 그 자리에서 실행됩니다.
   for (let index = 0; index < 6; index += 1) {
     controller.handleWheel(createFingerEvent(index * 16));
   }
@@ -760,6 +761,39 @@ test("이미 시작한 제스처는 세로 입력이 끼어들어도 끊기지 �
   controller.handleWheel(createFingerEvent(32, -20));
 
   assert.equal(controller.gestureDirection, "back");
+  controller.endGestureCapture();
+});
+
+test("탭이 닫히는 제스처는 인디케이터로 미리 알린다", () => {
+  const runtime = loadContentModules({ historyLength: 1 });
+  const controller = new runtime.namespace.GestureController();
+  const shown = [];
+
+  controller.menu = createGestureMenuStub({
+    showGestureIndicator: (options) => shown.push(options)
+  });
+  controller.handleWheel(createFingerEvent(0, -20));
+  controller.handleWheel(createFingerEvent(16, -20));
+
+  // 진행도는 당긴 시간이 아니라 끌어당긴 거리입니다. 가득 차는 지점이 곧
+  // 실행되는 지점이라, 무엇이 일어날지 보고 나서 취소할 수 있습니다.
+  assert.equal(shown[0].closing, true);
+  assert.equal(shown[0].progress, 20 / 64);
+  assert.equal(shown[1].progress, 40 / 64);
+  controller.endGestureCapture();
+});
+
+test("기록이 있는 탭에서는 닫기 표시가 나오지 않는다", () => {
+  const runtime = loadContentModules({ historyLength: 3 });
+  const controller = new runtime.namespace.GestureController();
+  const shown = [];
+
+  controller.menu = createGestureMenuStub({
+    showGestureIndicator: (options) => shown.push(options)
+  });
+  controller.handleWheel(createFingerEvent(0, -20));
+
+  assert.equal(shown[0].closing, false);
   controller.endGestureCapture();
 });
 

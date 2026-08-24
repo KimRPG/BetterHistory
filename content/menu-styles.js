@@ -36,7 +36,21 @@
       width: var(--size);
     }
     .indicator.visible { display: flex; }
-    .indicator svg { height: 34px; width: 34px; }
+    /* 붉은 칠은 ::before로 덮으므로, 글리프는 그 위에 오도록 띄웁니다. */
+    .indicator svg { height: 34px; width: 34px; position: relative; }
+    /* 탭이 닫히는 제스처는 되돌리기 어려우므로 다르게 보여야 합니다. 화살표
+       대신 ✕를 쓰고, 끌수록 붉어져 가득 찬 순간이 실행 지점임을 알립니다. */
+    .indicator .glyph-close { display: none; }
+    .indicator.closing .glyph-move { display: none; }
+    .indicator.closing .glyph-close { display: block; }
+    .indicator.closing::before {
+      background: #dc2626;
+      border-radius: inherit;
+      content: "";
+      inset: 0;
+      opacity: var(--progress);
+      position: absolute;
+    }
     .indicator.from-right {
       justify-content: flex-start;
       left: auto;
